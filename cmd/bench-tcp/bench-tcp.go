@@ -22,7 +22,7 @@ import (
 // https://github.com/snapview/tokio-tungstenite/blob/master/examples/autobahn-client.rs
 
 type Client struct {
-	WSAddr         string        `clop:"short;long" usage:"WebSocket server address (e.g., ws://host:port or ws://host:minport-maxport)" default:""`
+	Addr           string        `clop:"short;long" usage:"server address (e.g., ws://host:port or ws://host:minport-maxport)" default:""`
 	Name           string        `clop:"short;long" usage:"Server name" default:""`
 	Label          string        `clop:"long" usage:"Title of the chart for the line graph" default:""`
 	Total          int           `clop:"short;long" usage:"Total number of runs" default:"100"`
@@ -71,15 +71,15 @@ type echoHandler struct {
 func (e *echoHandler) readLoop(c net.Conn) {
 	buf := make([]byte, 1024)
 	for {
-		_, err := c.Read(buf)
+		n, err := c.Read(buf)
 		if err != nil {
 			return
 		}
 		atomic.AddInt64(&recvCount, 1)
-		c.Write(payload)
+		c.Write(buf[:n])
 
 		if e.OpenCheck {
-			if !bytes.Equal(buf, payload) {
+			if !bytes.Equal(buf[:n], payload) {
 				if e.SaveErr {
 					os.WriteFile(fmt.Sprintf("%x.err.log", c), payload, 0644)
 					os.WriteFile(fmt.Sprintf("%v.success.log", c), buf, 0644)
@@ -107,6 +107,7 @@ func (client *Client) runTest(currTotal int, data chan struct{}) {
 		return
 	}
 
+	c.Write(payload)
 	(&echoHandler{Client: client, curr: currTotal, total: currTotal, data: data}).readLoop(c)
 }
 
@@ -222,11 +223,11 @@ func main() {
 		payload = bytes.Repeat([]byte("𠜎"), c.PayloadSize/len("𠜎"))
 	}
 
-	if c.WSAddr == "" && c.Name == "" {
+	if c.Addr == "" && c.Name == "" {
 		fmt.Printf("wsaddr or name is required, ./bench-ws -h\n")
 		os.Exit(1)
 	}
-	c.addrs = config.GenerateAddrs(c.WSAddr, c.Name)
+	c.addrs = config.GenerateAddrs(c.Addr, c.Name)
 	data := make(chan struct{}, c.Total)
 
 	now := time.Now()
