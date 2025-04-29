@@ -155,7 +155,9 @@ func (e *echoHandler) readLoop(c net.Conn) {
 			}
 		}
 
-		c.Write(buf[:n])
+		if e.VerifyFile == "" {
+			c.Write(buf[:n])
+		}
 
 		if e.OpenCheck {
 			if !bytes.Equal(buf[:n], payload) {
