@@ -26,3 +26,5 @@ go.work.sum
 
 /bench-tcp.linux
 /bench-tcp.mac
+*.txt
+*.log

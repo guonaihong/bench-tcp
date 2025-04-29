@@ -1,11 +1,14 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"context"
+	"crypto/md5"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"sync"
@@ -21,6 +24,8 @@ import (
 
 // https://github.com/snapview/tokio-tungstenite/blob/master/examples/autobahn-client.rs
 
+// --verify-file 用于检查向服务端发送一个大文件，服务端echo返回的数据是否一致，用于检查服务端是否有丢包
+// ./bench-tcp --verify-file /path/to/file.txt --addr localhost:8080
 type Client struct {
 	Addr           string        `clop:"short;long" usage:"server address (e.g., ws://host:port or ws://host:minport-maxport)" default:""`
 	Name           string        `clop:"short;long" usage:"Server name" default:""`
@@ -36,6 +41,7 @@ type Client struct {
 	Text           string        `clop:"long" usage:"Text to send"`
 	SaveErr        bool          `clop:"long" usage:"Save error log"`
 	LimitPortRange int           `clop:"short;long" usage:"Limit port range (1 for limited, -1 for unlimited)" default:"1"`
+	VerifyFile     string        `clop:"long" usage:"File path to verify echo content"`
 	mu             sync.Mutex
 
 	result []int
@@ -70,12 +76,77 @@ type echoHandler struct {
 
 func (e *echoHandler) readLoop(c net.Conn) {
 	buf := make([]byte, 1024)
+	var receivedData []byte
+	var expectedMD5 [16]byte
+
+	var fileContent []byte
+	if e.VerifyFile != "" {
+		// Calculate expected MD5
+		file, err := os.Open(e.VerifyFile)
+		if err != nil {
+			fmt.Printf("Error opening file: %v\n", err)
+			return
+		}
+		defer file.Close()
+
+		// Read file content
+		fileContent, err = io.ReadAll(file)
+		if err != nil {
+			fmt.Printf("Error reading file: %v\n", err)
+			return
+		}
+
+		// Calculate MD5 of file content
+		expectedMD5 = md5.Sum(fileContent)
+
+		go func() {
+			br := bufio.NewReader(bytes.NewReader(fileContent))
+			total := 0
+			buf := make([]byte, 1024)
+			for {
+				n, err := br.Read(buf)
+				if err != nil {
+					fmt.Printf("read file error: %v\n", err)
+
+					break
+				}
+				c.Write(buf[:n])
+				total += n
+				fmt.Printf("send bytes size: %d\n", total)
+			}
+
+			fmt.Printf("file send done, total: %d\n", total)
+		}()
+	}
+
 	for {
 		n, err := c.Read(buf)
 		if err != nil {
+			fmt.Printf("read socket error: %v\n", err)
 			return
 		}
 		atomic.AddInt64(&recvCount, 1)
+
+		if e.VerifyFile != "" {
+			receivedData = append(receivedData, buf[:n]...)
+			if len(receivedData) == len(fileContent) {
+				// Calculate MD5 of received data
+				fmt.Printf("recv bytes size: %d\n", len(receivedData))
+				receivedMD5 := md5.Sum(receivedData)
+				if receivedMD5 != expectedMD5 {
+					fmt.Printf("MD5 verification failed. Expected: %x, Got: %x\n", expectedMD5, receivedMD5)
+					if e.SaveErr {
+						os.WriteFile("fileContent.send.log", fileContent, 0644)
+						os.WriteFile("fileContent.recv.log", receivedData, 0644)
+					}
+					panic("MD5 verification failed")
+				}
+				fmt.Printf("MD5 verification successful: %x\n", receivedMD5)
+				c.Close()
+				return
+			}
+		}
+
 		c.Write(buf[:n])
 
 		if e.OpenCheck {
@@ -88,13 +159,17 @@ func (e *echoHandler) readLoop(c net.Conn) {
 			}
 		}
 		atomic.AddInt64(&sendCount, 1)
-		select {
-		case _, ok := <-e.data:
-			if !ok {
-				c.Close()
-				return
+
+		if e.VerifyFile == "" {
+			select {
+			case _, ok := <-e.data:
+				if !ok {
+					c.Close()
+					fmt.Printf("data chan close\n")
+					return
+				}
+			default:
 			}
-		default:
 		}
 	}
 }
@@ -107,7 +182,9 @@ func (client *Client) runTest(currTotal int, data chan struct{}) {
 		return
 	}
 
-	c.Write(payload)
+	if client.VerifyFile == "" {
+		c.Write(payload)
+	}
 	(&echoHandler{Client: client, curr: currTotal, total: currTotal, data: data}).readLoop(c)
 }
 
@@ -117,9 +194,14 @@ func (c *Client) producer(data chan struct{}) {
 		close(data)
 
 		if c.OpenTmpResult {
-			fmt.Printf("bye bye producer")
+			fmt.Printf("bye bye producer\n")
 		}
 	}()
+
+	// 如果设置了验证文件，则不进行生产者生产数据
+	if c.VerifyFile != "" {
+		return
+	}
 	if c.Duration > 0 {
 		tk := time.NewTicker(c.Duration)
 		for {
@@ -164,7 +246,7 @@ func (c *Client) consumer(data chan struct{}) {
 			defer wg.Done()
 
 			c.runTest(c.Total/c.Concurrency, data)
-			// fmt.Printf("bye bye consumer:%d\n", i)
+			fmt.Printf("bye bye consumer:%d\n", i)
 		}(i)
 	}
 }
