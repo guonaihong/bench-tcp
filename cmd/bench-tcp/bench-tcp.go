@@ -74,6 +74,49 @@ type echoHandler struct {
 	*Client
 }
 
+func (e *echoHandler) sendFile(c net.Conn) (fileContent []byte, expectedMD5 [16]byte) {
+	// Calculate expected MD5
+	file, err := os.Open(e.VerifyFile)
+	if err != nil {
+		fmt.Printf("Error opening file: %v\n", err)
+		return
+	}
+	defer file.Close()
+
+	// Read file content
+	fileContent, err = io.ReadAll(file)
+	if err != nil {
+		fmt.Printf("Error reading file: %v\n", err)
+		return
+	}
+
+	// Calculate MD5 of file content
+	expectedMD5 = md5.Sum(fileContent)
+
+	go func() {
+		br := bufio.NewReader(bytes.NewReader(fileContent))
+		total := 0
+		buf := make([]byte, 1024)
+		sendBytes := []byte{}
+		for {
+			n, err := br.Read(buf)
+			if err != nil {
+				fmt.Printf("read file error: %v\n", err)
+
+				break
+			}
+			c.Write(buf[:n])
+			sendBytes = append(sendBytes, buf[:n]...)
+			total += n
+			fmt.Printf("send bytes size: %d\n", total)
+		}
+
+		fmt.Printf("file send done, total: %d, send bytes md5: %x\n", total, md5.Sum(sendBytes))
+	}()
+
+	return fileContent, expectedMD5
+}
+
 func (e *echoHandler) readLoop(c net.Conn) {
 	buf := make([]byte, 1024)
 	var receivedData []byte
@@ -81,42 +124,7 @@ func (e *echoHandler) readLoop(c net.Conn) {
 
 	var fileContent []byte
 	if e.VerifyFile != "" {
-		// Calculate expected MD5
-		file, err := os.Open(e.VerifyFile)
-		if err != nil {
-			fmt.Printf("Error opening file: %v\n", err)
-			return
-		}
-		defer file.Close()
-
-		// Read file content
-		fileContent, err = io.ReadAll(file)
-		if err != nil {
-			fmt.Printf("Error reading file: %v\n", err)
-			return
-		}
-
-		// Calculate MD5 of file content
-		expectedMD5 = md5.Sum(fileContent)
-
-		go func() {
-			br := bufio.NewReader(bytes.NewReader(fileContent))
-			total := 0
-			buf := make([]byte, 1024)
-			for {
-				n, err := br.Read(buf)
-				if err != nil {
-					fmt.Printf("read file error: %v\n", err)
-
-					break
-				}
-				c.Write(buf[:n])
-				total += n
-				fmt.Printf("send bytes size: %d\n", total)
-			}
-
-			fmt.Printf("file send done, total: %d\n", total)
-		}()
+		fileContent, expectedMD5 = e.sendFile(c)
 	}
 
 	for {
