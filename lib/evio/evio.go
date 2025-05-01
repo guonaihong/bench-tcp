@@ -1,4 +1,4 @@
-package evio
+package main
 
 import (
 	"log"
@@ -57,4 +57,9 @@ func (s *Server) Stop() error {
 	// evio doesn't provide a way to stop the server
 	// The server will stop when the process exits
 	return nil
+}
+
+func main() {
+	server := NewServer("127.0.0.1:8080")
+	server.Start()
 }

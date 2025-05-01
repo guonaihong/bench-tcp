@@ -1,4 +1,4 @@
-package nbio
+package main
 
 import (
 	"log"
@@ -48,4 +48,9 @@ func (s *Server) Start() error {
 // Stop stops the TCP echo server
 func (s *Server) Stop() {
 	s.engine.Stop()
+}
+
+func main() {
+	server := NewServer("127.0.0.1:8080")
+	server.Start()
 }

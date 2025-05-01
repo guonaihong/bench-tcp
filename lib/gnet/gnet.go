@@ -1,4 +1,4 @@
-package gnet
+package main
 
 import (
 	"context"
@@ -68,4 +68,9 @@ func (es *echoServer) OnTraffic(c gnet.Conn) (action gnet.Action) {
 // OnTick is called when the engine ticks
 func (es *echoServer) OnTick() (delay time.Duration, action gnet.Action) {
 	return time.Second, gnet.None
+}
+
+func main() {
+	server := NewServer("127.0.0.1:8080")
+	server.Start()
 }

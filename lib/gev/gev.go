@@ -1,4 +1,4 @@
-package gev
+package main
 
 import (
 	"log"
@@ -33,7 +33,8 @@ func (s *Server) Start() error {
 	s.srv = srv
 
 	log.Printf("TCP echo server listening on %s", s.addr)
-	return s.srv.Start()
+	s.srv.Start()
+	return nil
 }
 
 // Stop stops the TCP echo server
@@ -52,7 +53,7 @@ func (h *echoHandler) OnConnect(c *connection.Connection) {
 }
 
 // OnMessage is called when socket receives data from peer
-func (h *echoHandler) OnMessage(c *connection.Connection, data []byte) interface{} {
+func (h *echoHandler) OnMessage(c *connection.Connection, ctx interface{}, data []byte) interface{} {
 	// Echo back the received data
 	c.Send(data)
 	return nil
@@ -61,4 +62,9 @@ func (h *echoHandler) OnMessage(c *connection.Connection, data []byte) interface
 // OnClose is called when a connection has been closed
 func (h *echoHandler) OnClose(c *connection.Connection) {
 	log.Printf("OnClose: %s", c.PeerAddr())
+}
+
+func main() {
+	server := NewServer("127.0.0.1:8080")
+	server.Start()
 }

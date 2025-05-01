@@ -1,4 +1,4 @@
-package netpoll
+package main
 
 import (
 	"context"
@@ -42,15 +42,15 @@ func (s *Server) Start() error {
 
 			// Echo back the received data
 			writer := connection.Writer()
-			writer.Write(data)
-			return connection.Flush()
+			_, err = writer.WriteBinary(data)
+			if err != nil {
+				return err
+			}
+			return nil
 		},
 		netpoll.WithOnConnect(func(ctx context.Context, connection netpoll.Connection) context.Context {
 			log.Printf("OnConnect: %s", connection.RemoteAddr())
 			return ctx
-		}),
-		netpoll.WithOnDisconnect(func(ctx context.Context, connection netpoll.Connection) {
-			log.Printf("OnDisconnect: %s", connection.RemoteAddr())
 		}),
 	)
 	if err != nil {
@@ -67,4 +67,9 @@ func (s *Server) Stop() error {
 		return s.ln.Close()
 	}
 	return nil
+}
+
+func main() {
+	server := NewServer("127.0.0.1:8080")
+	server.Start()
 }

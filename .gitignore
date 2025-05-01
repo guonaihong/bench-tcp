@@ -28,3 +28,5 @@ go.work.sum
 /bench-tcp.mac
 *.txt
 *.log
+*.mac
+*.linux
