@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"runtime"
 
 	"github.com/lesismal/nbio"
 )
@@ -17,6 +18,8 @@ func NewServer(addr string) *Server {
 		Network:            "tcp",
 		Addrs:              []string{addr},
 		MaxWriteBufferSize: 6 * 1024 * 1024,
+		NPoller:            runtime.NumCPU(),
+		EpollMod:           nbio.EPOLLET,
 	})
 
 	// handle new connection
