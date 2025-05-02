@@ -24,8 +24,6 @@ go.work.sum
 # env file
 .env
 
-/bench-tcp.linux
-/bench-tcp.mac
 *.txt
 *.log
 *.mac

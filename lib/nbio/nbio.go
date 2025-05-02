@@ -32,7 +32,7 @@ func NewServer(addr string) *Server {
 	// handle data
 	engine.OnData(func(c *nbio.Conn, data []byte) {
 		// echo back the received data
-		c.Write(append([]byte{}, data...))
+		c.Write(data)
 	})
 
 	return &Server{
@@ -51,6 +51,9 @@ func (s *Server) Stop() {
 }
 
 func main() {
-	server := NewServer("127.0.0.1:8080")
+	server := NewServer("127.0.0.1:58080")
 	server.Start()
+	defer server.Stop()
+
+	<-make(chan int)
 }

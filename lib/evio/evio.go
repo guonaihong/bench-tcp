@@ -60,6 +60,6 @@ func (s *Server) Stop() error {
 }
 
 func main() {
-	server := NewServer("127.0.0.1:8080")
+	server := NewServer("127.0.0.1:18080")
 	server.Start()
 }

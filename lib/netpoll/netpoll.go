@@ -1,75 +1,72 @@
+/*
+ * Copyright 2021 CloudWeGo
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package main
 
 import (
 	"context"
-	"log"
-	"net"
+	"time"
 
 	"github.com/cloudwego/netpoll"
 )
 
-// Server represents a TCP echo server using netpoll
-type Server struct {
-	addr string
-	ln   net.Listener
-}
+func main() {
+	network, address := "tcp", ":8080"
+	listener, _ := netpoll.CreateListener(network, address)
 
-// NewServer creates a new TCP echo server
-func NewServer(addr string) *Server {
-	return &Server{
-		addr: addr,
-	}
-}
-
-// Start starts the TCP echo server
-func (s *Server) Start() error {
-	// Create listener
-	ln, err := net.Listen("tcp", s.addr)
-	if err != nil {
-		return err
-	}
-	s.ln = ln
-
-	// Create event loop
-	eventLoop, err := netpoll.NewEventLoop(
-		func(ctx context.Context, connection netpoll.Connection) error {
-			// Read data from the connection
-			reader := connection.Reader()
-			data, err := reader.Next(reader.Len())
-			if err != nil {
-				return err
-			}
-
-			// Echo back the received data
-			writer := connection.Writer()
-			_, err = writer.WriteBinary(data)
-			if err != nil {
-				return err
-			}
-			return nil
-		},
-		netpoll.WithOnConnect(func(ctx context.Context, connection netpoll.Connection) context.Context {
-			log.Printf("OnConnect: %s", connection.RemoteAddr())
-			return ctx
-		}),
+	eventLoop, _ := netpoll.NewEventLoop(
+		handle,
+		netpoll.WithOnPrepare(prepare),
+		netpoll.WithOnConnect(connect),
+		netpoll.WithReadTimeout(time.Second),
 	)
-	if err != nil {
-		return err
-	}
 
-	log.Printf("TCP echo server listening on %s", s.addr)
-	return eventLoop.Serve(ln)
+	// start listen loop ...
+	eventLoop.Serve(listener)
 }
 
-// Stop stops the TCP echo server
-func (s *Server) Stop() error {
-	if s.ln != nil {
-		return s.ln.Close()
-	}
+var _ netpoll.OnPrepare = prepare
+var _ netpoll.OnConnect = connect
+var _ netpoll.OnRequest = handle
+var _ netpoll.CloseCallback = close
+
+func prepare(connection netpoll.Connection) context.Context {
+	return context.Background()
+}
+
+func close(connection netpoll.Connection) error {
+	// fmt.Printf("[%v] connection closed\n", connection.RemoteAddr())
 	return nil
 }
 
-func main() {
-	server := NewServer("127.0.0.1:8080")
-	server.Start()
+func connect(ctx context.Context, connection netpoll.Connection) context.Context {
+	// fmt.Printf("[%v] connection established\n", connection.RemoteAddr())
+	connection.AddCloseCallback(close)
+	return ctx
+}
+
+func handle(ctx context.Context, connection netpoll.Connection) error {
+	reader, writer := connection.Reader(), connection.Writer()
+	defer reader.Release()
+
+	msg, _ := reader.ReadString(reader.Len())
+	// fmt.Printf("[recv msg] %v\n", msg)
+
+	writer.WriteString(msg)
+	writer.Flush()
+
+	return nil
 }
