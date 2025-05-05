@@ -18,19 +18,26 @@ func startServer(port int, wg *sync.WaitGroup) {
 		log.Fatalf("Failed to start server: %v", err)
 	}
 
-	conn, err := ln.Accept()
-
-	if err != nil {
-		log.Fatalf("Failed to accept connection: %v", err)
-	}
-
-	buf := make([]byte, 1024)
 	for {
-		n, err := conn.Read(buf)
+
+		conn, err := ln.Accept()
+
 		if err != nil {
-			log.Fatalf("Failed to read from connection: %v", err)
+			log.Fatalf("Failed to accept connection: %v", err)
 		}
-		conn.Write(buf[:n])
+
+		go func(conn net.Conn) {
+
+			buf := make([]byte, 1024)
+			for {
+				n, err := conn.Read(buf)
+				if err != nil {
+					log.Fatalf("Failed to read from connection: %v", err)
+				}
+				conn.Write(buf[:n])
+			}
+		}(conn)
+
 	}
 
 }

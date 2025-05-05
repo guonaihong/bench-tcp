@@ -2,13 +2,13 @@
 
 # Array of enabled servers (uncomment the ones you want to run)
 ENABLED_SERVERS=(
-    # "net-tcp"
+     "net-tcp"
     # "uio"
     # "evio"
     # "netpoll"
     # "gnet"
     # "gev"
-     "nbio"
+    #"nbio"
     #"pulse"
 )
 

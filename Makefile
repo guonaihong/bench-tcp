@@ -1,7 +1,7 @@
 all: build-linux build-mac
 
 # 定义所有需要编译的目录
-TARGETS := cmd/bench-tcp lib/evio lib/netpoll lib/gnet lib/gev lib/nbio lib/uio lib/pulse
+TARGETS := cmd/bench-tcp lib/evio lib/netpoll lib/gnet lib/gev lib/nbio lib/uio lib/pulse lib/net-tcp
 
 # 创建输出目录
 $(shell mkdir -p bin)
