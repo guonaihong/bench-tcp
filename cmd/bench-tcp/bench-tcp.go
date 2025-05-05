@@ -382,6 +382,8 @@ func main() {
 		os.Exit(1)
 	}
 
+	fmt.Printf("addrs: %v\n", client.addrs)
+
 	// Initialize payload
 	if client.Text != "" {
 		payload = []byte(client.Text)
