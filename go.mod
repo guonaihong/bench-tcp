@@ -6,6 +6,7 @@ toolchain go1.24.1
 
 require (
 	github.com/Allenxuxu/gev v0.3.0
+	github.com/antlabs/pulse v0.0.0-20250503154530-f50f5f5c01d4
 	github.com/cloudwego/netpoll v0.5.0
 	github.com/lesismal/nbio v1.6.4
 	github.com/panjf2000/gnet/v2 v2.3.3
@@ -13,7 +14,10 @@ require (
 	github.com/urpc/uio v0.0.0-20250417042948-d9796b9829ae
 )
 
-require github.com/kavu/go_reuseport v1.5.0 // indirect
+require (
+	github.com/ebitengine/purego v0.8.2 // indirect
+	github.com/kavu/go_reuseport v1.5.0 // indirect
+)
 
 require (
 	github.com/Allenxuxu/ringbuffer v0.0.9 // indirect

@@ -8,48 +8,42 @@ ENABLED_SERVERS=(
     # "netpoll"
     # "gnet"
     # "gev"
-    "nbio"
+     "nbio"
+    #"pulse"
 )
 
 # Port ranges for different libraries
 # Format: LIB_NAME_START_PORT-LIB_NAME_END_PORT
 
-# First port range (8080-8120)
+# First port range (1000-1030)
 NET_TCP_START_PORT=1000
 NET_TCP_END_PORT=1030
 
-# Second port range (18080-18120)
+# Second port range (1100-1130)
 UIO_START_PORT=1100
 UIO_END_PORT=1130
 
-# Third port range (28080-28120)
+# Third port range (1200-1230)
 EVIO_START_PORT=1200
 EVIO_END_PORT=1230
 
-# Fourth port range (38080-38120)
+# Fourth port range (1300-1330)
 NETPOLL_START_PORT=1300
 NETPOLL_END_PORT=1330
 
-# Fifth port range (48080-48120)
+# Fifth port range (1400-1430)
 GNET_START_PORT=1400
 GNET_END_PORT=1430
 
-# Sixth port range (58080-58120)
+# Sixth port range (1500-1530)
 GEV_START_PORT=1500
 GEV_END_PORT=1530
 
-# Seventh port range (68080-68120)
+# Seventh port range (1600-1630)
 NBIO_START_PORT=1600
+# NBIO_END_PORT=1600
 NBIO_END_PORT=1630
 
-# Eighth port range (78080-78120)
-RPCX_START_PORT=1700
-RPCX_END_PORT=1730
-
-# Ninth port range (88080-88120)
-GRPC_START_PORT=1800
-GRPC_END_PORT=1830
-
-# Tenth port range (98080-98120)
-THRIFT_START_PORT=1900
-THRIFT_END_PORT=1930 
+# Eighth port range (1700-1730)
+PULSE_START_PORT=1700
+PULSE_END_PORT=1730
