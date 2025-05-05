@@ -3,6 +3,17 @@
 # Source the config file
 source "$(dirname "$0")/config.sh"
 
+# Detect OS type to use correct binary extension
+OSTYPE=$(uname -s)
+if [[ "$OSTYPE" == "Linux" ]]; then
+    BIN_EXT="linux"
+elif [[ "$OSTYPE" == "Darwin" ]]; then
+    BIN_EXT="mac"
+else
+    echo "Unsupported OS: $OSTYPE"
+    exit 1
+fi
+
 # Function to get port range for a server
 get_port_range() {
     local lib_name=$1
@@ -24,9 +35,22 @@ start_server() {
     
     echo "Starting $lib_name server on port range $start_port-$end_port"
     
-    # Start the server in the background
-    cd "$(dirname "$0")/../lib/$lib_name" || exit 1
-    go run . &
+    # Export port ranges as environment variables
+    local lib_upper="${lib_name^^}"
+    lib_upper="${lib_upper//-/_}"
+    export "${lib_upper}_START_PORT"="$start_port"
+    export "${lib_upper}_END_PORT"="$end_port"
+    
+    # Determine binary path
+    local bin_path="$(dirname "$0")/../bin/${lib_name}.${BIN_EXT}"
+    
+    if [ ! -x "$bin_path" ]; then
+        echo "Error: Binary not found or not executable: $bin_path"
+        return 1
+    fi
+    
+    # Start the server in the background using pre-compiled binary
+    "$bin_path" &
     
     # Store the PID
     echo $! > "/tmp/bench-tcp-$lib_name.pid"
