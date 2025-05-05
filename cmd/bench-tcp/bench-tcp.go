@@ -280,7 +280,7 @@ func (c *Client) printTps(now time.Time, sec *int) {
 	c.mu.Unlock()
 }
 
-func (c *Client) Run(now time.Time) {
+func (c *Client) tpsLog(now time.Time) {
 	nw := time.NewTicker(time.Second)
 	sec := 1
 	for {
@@ -395,6 +395,20 @@ func main() {
 	// Create context
 	client.ctx, client.cancel = context.WithCancelCause(context.Background())
 
-	// Run the test
-	client.Run(time.Now())
+	data := make(chan struct{})
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+	defer wg.Wait()
+
+	go func() {
+		defer wg.Done()
+		client.producer(data)
+	}()
+	go func() {
+		defer wg.Done()
+		client.consumer(data)
+	}()
+
+	go client.tpsLog(time.Now())
 }
