@@ -1,10 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"log"
+	"sync"
 
 	"github.com/Allenxuxu/gev"
 	"github.com/Allenxuxu/gev/connection"
+	"github.com/guonaihong/bench-tcp/pkg/port"
 )
 
 // Server represents a TCP echo server using gev
@@ -64,7 +67,38 @@ func (h *echoHandler) OnClose(c *connection.Connection) {
 	log.Printf("OnClose: %s", c.PeerAddr())
 }
 
+func startServer(port int, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	addr := fmt.Sprintf("127.0.0.1:%d", port)
+	server := NewServer(addr)
+	log.Printf("Starting GEV server on %s", addr)
+
+	if err := server.Start(); err != nil {
+		log.Printf("Server on port %d failed: %v", port, err)
+		return
+	}
+	defer server.Stop()
+
+	// Keep the server running
+	select {}
+}
+
 func main() {
-	server := NewServer("127.0.0.1:8080")
-	server.Start()
+	// Get port range from environment variables
+	portRange, err := port.GetPortRange("GEV")
+	if err != nil {
+		log.Fatalf("Failed to get port range: %v", err)
+	}
+
+	var wg sync.WaitGroup
+
+	// Start a server for each port in the range
+	for port := portRange.Start; port <= portRange.End; port++ {
+		wg.Add(1)
+		go startServer(port, &wg)
+	}
+
+	// Wait for all servers to exit
+	wg.Wait()
 }

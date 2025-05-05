@@ -4,7 +4,9 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"sync"
 
+	"github.com/guonaihong/bench-tcp/pkg/port"
 	"github.com/panjf2000/gnet/v2"
 )
 
@@ -28,14 +30,40 @@ func (es *echoServer) OnTraffic(c gnet.Conn) gnet.Action {
 	return gnet.None
 }
 
-func main() {
-	var port int
-	var multicore bool
+func startServer(port int, multicore bool, wg *sync.WaitGroup) {
+	defer wg.Done()
 
-	// Example command: go run echo.go --port 9000 --multicore=true
-	flag.IntVar(&port, "port", 9000, "--port 9000")
+	addr := fmt.Sprintf("tcp://127.0.0.1:%d", port)
+	echo := &echoServer{
+		addr:      addr,
+		multicore: multicore,
+	}
+
+	log.Printf("Starting gnet server on %s", addr)
+	if err := gnet.Run(echo, echo.addr, gnet.WithMulticore(multicore)); err != nil {
+		log.Printf("Server on port %d failed: %v", port, err)
+	}
+}
+
+func main() {
+	var multicore bool
 	flag.BoolVar(&multicore, "multicore", false, "--multicore true")
 	flag.Parse()
-	echo := &echoServer{addr: fmt.Sprintf("tcp://:%d", port), multicore: multicore}
-	log.Fatal(gnet.Run(echo, echo.addr, gnet.WithMulticore(multicore)))
+
+	// Get port range from environment variables
+	portRange, err := port.GetPortRange("GNET")
+	if err != nil {
+		log.Fatalf("Failed to get port range: %v", err)
+	}
+
+	var wg sync.WaitGroup
+
+	// Start a server for each port in the range
+	for port := portRange.Start; port <= portRange.End; port++ {
+		wg.Add(1)
+		go startServer(port, multicore, &wg)
+	}
+
+	// Wait for all servers to exit
+	wg.Wait()
 }

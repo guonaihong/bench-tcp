@@ -11,13 +11,15 @@ import (
 	"io"
 	"net"
 	"os"
+	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	_ "net/http/pprof"
 
-	"github.com/guonaihong/bench-tcp/config"
+	"github.com/guonaihong/bench-tcp/pkg/port"
 	"github.com/guonaihong/bench-tcp/report"
 	"github.com/guonaihong/clop"
 )
@@ -305,35 +307,94 @@ func (c *Client) Run(now time.Time) {
 	}
 }
 
-func main() {
-	var c Client
-
-	clop.MustBind(&c)
-	if len(c.Text) > 0 {
-		payload = []byte(c.Text)
-	} else {
-		payload = bytes.Repeat([]byte("𠜎"), c.PayloadSize/len("𠜎"))
+func (c *Client) initAddrs() error {
+	if c.Addr == "" {
+		return fmt.Errorf("addr is required")
 	}
 
-	if c.Addr == "" && c.Name == "" {
-		fmt.Printf("wsaddr or name is required, ./bench-ws -h\n")
+	// Check if the address contains a port range
+	if strings.Contains(c.Addr, ":") {
+		parts := strings.Split(c.Addr, ":")
+		if len(parts) != 2 {
+			return fmt.Errorf("invalid address format")
+		}
+
+		host := parts[0]
+		portStr := parts[1]
+
+		// Check if it's a port range
+		if strings.Contains(portStr, "-") {
+			portRange := strings.Split(portStr, "-")
+			if len(portRange) != 2 {
+				return fmt.Errorf("invalid port range format")
+			}
+
+			start, err := strconv.Atoi(portRange[0])
+			if err != nil {
+				return fmt.Errorf("invalid start port: %v", err)
+			}
+
+			end, err := strconv.Atoi(portRange[1])
+			if err != nil {
+				return fmt.Errorf("invalid end port: %v", err)
+			}
+
+			// Generate addresses for the port range
+			for port := start; port <= end; port++ {
+				c.addrs = append(c.addrs, fmt.Sprintf("%s:%d", host, port))
+			}
+		} else {
+			// Single port
+			c.addrs = []string{c.Addr}
+		}
+	} else {
+		// Try to get port range from environment variables
+		if c.Name != "" {
+			portRange, err := port.GetPortRange(c.Name)
+			if err == nil {
+				host := c.Addr
+				for p := portRange.Start; p <= portRange.End; p++ {
+					c.addrs = append(c.addrs, fmt.Sprintf("%s:%d", host, p))
+				}
+			} else {
+				// Fallback to single address
+				c.addrs = []string{c.Addr}
+			}
+		} else {
+			c.addrs = []string{c.Addr}
+		}
+	}
+
+	if len(c.addrs) == 0 {
+		return fmt.Errorf("no valid addresses found")
+	}
+
+	return nil
+}
+
+func main() {
+	var client Client
+	clop.Bind(&client)
+
+	// Initialize addresses with port ranges
+	if err := client.initAddrs(); err != nil {
+		fmt.Printf("Error initializing addresses: %v\n", err)
 		os.Exit(1)
 	}
-	c.addrs = config.GenerateAddrs(c.Addr, c.Name)
-	data := make(chan struct{}, c.Total)
 
-	now := time.Now()
-	c.ctx, c.cancel = context.WithCancelCause(context.Background())
-	var wg sync.WaitGroup
-	wg.Add(2)
-	defer wg.Wait()
-	go func() {
-		defer wg.Done()
-		c.producer(data)
-	}()
-	go func() {
-		defer wg.Done()
-		c.Run(now)
-	}()
-	c.consumer(data)
+	// Initialize payload
+	if client.Text != "" {
+		payload = []byte(client.Text)
+	} else {
+		payload = make([]byte, client.PayloadSize)
+		for i := 0; i < client.PayloadSize; i++ {
+			payload[i] = 'a'
+		}
+	}
+
+	// Create context
+	client.ctx, client.cancel = context.WithCancelCause(context.Background())
+
+	// Run the test
+	client.Run(time.Now())
 }

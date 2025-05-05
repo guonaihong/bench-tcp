@@ -18,25 +18,14 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"log"
+	"sync"
 	"time"
 
 	"github.com/cloudwego/netpoll"
+	"github.com/guonaihong/bench-tcp/pkg/port"
 )
-
-func main() {
-	network, address := "tcp", ":8080"
-	listener, _ := netpoll.CreateListener(network, address)
-
-	eventLoop, _ := netpoll.NewEventLoop(
-		handle,
-		netpoll.WithOnPrepare(prepare),
-		netpoll.WithOnConnect(connect),
-		netpoll.WithReadTimeout(time.Second),
-	)
-
-	// start listen loop ...
-	eventLoop.Serve(listener)
-}
 
 var _ netpoll.OnPrepare = prepare
 var _ netpoll.OnConnect = connect
@@ -69,4 +58,50 @@ func handle(ctx context.Context, connection netpoll.Connection) error {
 	writer.Flush()
 
 	return nil
+}
+
+func startServer(port int, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	network, address := "tcp", fmt.Sprintf("127.0.0.1:%d", port)
+	listener, err := netpoll.CreateListener(network, address)
+	if err != nil {
+		log.Printf("Failed to create listener on port %d: %v", port, err)
+		return
+	}
+
+	eventLoop, err := netpoll.NewEventLoop(
+		handle,
+		netpoll.WithOnPrepare(prepare),
+		netpoll.WithOnConnect(connect),
+		netpoll.WithReadTimeout(time.Second),
+	)
+	if err != nil {
+		log.Printf("Failed to create event loop on port %d: %v", port, err)
+		return
+	}
+
+	log.Printf("Starting Netpoll server on %s", address)
+	if err := eventLoop.Serve(listener); err != nil {
+		log.Printf("Server on port %d failed: %v", port, err)
+	}
+}
+
+func main() {
+	// Get port range from environment variables
+	portRange, err := port.GetPortRange("NETPOLL")
+	if err != nil {
+		log.Fatalf("Failed to get port range: %v", err)
+	}
+
+	var wg sync.WaitGroup
+
+	// Start a server for each port in the range
+	for port := portRange.Start; port <= portRange.End; port++ {
+		wg.Add(1)
+		go startServer(port, &wg)
+	}
+
+	// Wait for all servers to exit
+	wg.Wait()
 }

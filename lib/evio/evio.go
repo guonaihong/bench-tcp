@@ -1,8 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"log"
+	"sync"
 
+	"github.com/guonaihong/bench-tcp/pkg/port"
 	"github.com/tidwall/evio"
 )
 
@@ -59,7 +62,34 @@ func (s *Server) Stop() error {
 	return nil
 }
 
+func startServer(port int, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	addr := fmt.Sprintf("127.0.0.1:%d", port)
+	server := NewServer(addr)
+	log.Printf("Starting EVIO server on %s", addr)
+
+	if err := server.Start(); err != nil {
+		log.Printf("Server on port %d failed: %v", port, err)
+		return
+	}
+}
+
 func main() {
-	server := NewServer("127.0.0.1:18080")
-	server.Start()
+	// Get port range from environment variables
+	portRange, err := port.GetPortRange("EVIO")
+	if err != nil {
+		log.Fatalf("Failed to get port range: %v", err)
+	}
+
+	var wg sync.WaitGroup
+
+	// Start a server for each port in the range
+	for port := portRange.Start; port <= portRange.End; port++ {
+		wg.Add(1)
+		go startServer(port, &wg)
+	}
+
+	// Wait for all servers to exit
+	wg.Wait()
 }

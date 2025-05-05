@@ -1,9 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"runtime"
+	"sync"
 
+	"github.com/guonaihong/bench-tcp/pkg/port"
 	"github.com/lesismal/nbio"
 )
 
@@ -53,10 +56,38 @@ func (s *Server) Stop() {
 	s.engine.Stop()
 }
 
-func main() {
-	server := NewServer("127.0.0.1:58080")
-	server.Start()
+func startServer(port int, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	addr := fmt.Sprintf("127.0.0.1:%d", port)
+	server := NewServer(addr)
+	log.Printf("Starting NBIO server on %s", addr)
+
+	if err := server.Start(); err != nil {
+		log.Printf("Server on port %d failed: %v", port, err)
+		return
+	}
 	defer server.Stop()
 
-	<-make(chan int)
+	// Keep the server running
+	select {}
+}
+
+func main() {
+	// Get port range from environment variables
+	portRange, err := port.GetPortRange("NBIO")
+	if err != nil {
+		log.Fatalf("Failed to get port range: %v", err)
+	}
+
+	var wg sync.WaitGroup
+
+	// Start a server for each port in the range
+	for port := portRange.Start; port <= portRange.End; port++ {
+		wg.Add(1)
+		go startServer(port, &wg)
+	}
+
+	// Wait for all servers to exit
+	wg.Wait()
 }
