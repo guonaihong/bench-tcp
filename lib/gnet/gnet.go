@@ -47,7 +47,7 @@ func startServer(port int, multicore bool, wg *sync.WaitGroup) {
 
 func main() {
 	var multicore bool
-	flag.BoolVar(&multicore, "multicore", false, "--multicore true")
+	flag.BoolVar(&multicore, "multicore", true, "--multicore true")
 	flag.Parse()
 
 	// Get port range from environment variables

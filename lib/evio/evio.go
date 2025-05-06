@@ -41,6 +41,7 @@ func (s *Server) Start() error {
 
 	// Handle connection opened
 	events.Opened = func(c evio.Conn) (out []byte, opts evio.Options, action evio.Action) {
+		opts.ReuseInputBuffer = true
 		log.Printf("Opened: %s", c.RemoteAddr().String())
 		return
 	}
