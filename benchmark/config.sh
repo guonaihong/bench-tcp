@@ -2,13 +2,13 @@
 
 # Array of enabled servers (uncomment the ones you want to run)
 ENABLED_SERVERS=(
-     "net-tcp"
+    # "net-tcp"
     # "uio"
     # "evio"
     # "netpoll"
     # "gnet"
     # "gev"
-    #"nbio"
+     "nbio"
     #"pulse"
 )
 
@@ -41,7 +41,6 @@ GEV_END_PORT=1530
 
 # Seventh port range (1600-1630)
 NBIO_START_PORT=1600
-# NBIO_END_PORT=1600
 NBIO_END_PORT=1630
 
 # Eighth port range (1700-1730)
