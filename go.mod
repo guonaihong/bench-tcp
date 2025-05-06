@@ -6,7 +6,7 @@ toolchain go1.24.1
 
 require (
 	github.com/Allenxuxu/gev v0.3.0
-	github.com/antlabs/pulse v0.0.0-20250506130628-ea86fd7827ea
+	github.com/antlabs/pulse v0.0.0-20250506165222-a99561547599
 	github.com/cloudwego/netpoll v0.7.0
 	github.com/lesismal/nbio v1.6.4
 	github.com/panjf2000/gnet/v2 v2.3.3
@@ -25,7 +25,7 @@ require (
 	github.com/Allenxuxu/toolkit v0.0.1 // indirect
 	github.com/RussellLuo/timingwheel v0.0.0-20201029015908-64de9d088c74 // indirect
 	github.com/antlabs/strsim v0.0.2 // indirect
-	github.com/bytedance/gopkg v0.1.1 // indirect
+	github.com/bytedance/gopkg v0.1.1
 	github.com/go-playground/locales v0.14.0 // indirect
 	github.com/go-playground/universal-translator v0.18.0 // indirect
 	github.com/go-playground/validator/v10 v10.10.1 // indirect

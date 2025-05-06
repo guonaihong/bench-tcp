@@ -8,8 +8,8 @@ ENABLED_SERVERS=(
     # "netpoll"
     # "gnet"
     # "gev"
-    "nbio"
-    #"pulse"
+    # "nbio"
+    "pulse"
 )
 
 # Port ranges for different libraries

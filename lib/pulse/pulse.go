@@ -59,6 +59,9 @@ func startServer(port int, wg *sync.WaitGroup) {
 
 func main() {
 
+	go func() {
+		// http.ListenAndServe(":6060", nil)
+	}()
 	// Get port range from environment variables
 	portRange, err := port.GetPortRange("PULSE")
 	if err != nil {
