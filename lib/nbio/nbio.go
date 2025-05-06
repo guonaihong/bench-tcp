@@ -21,6 +21,7 @@ func NewServer(addr []string) *Server {
 		Network:            "tcp",
 		Addrs:              addr,
 		MaxWriteBufferSize: 6 * 1024 * 1024,
+		ReadBufferSize:     8 * 1024,
 		NPoller:            runtime.NumCPU(),
 		EpollMod:           nbio.EPOLLET,
 	})

@@ -28,7 +28,7 @@ func startServer(port int, wg *sync.WaitGroup) {
 
 		go func(conn net.Conn) {
 
-			buf := make([]byte, 1024)
+			buf := make([]byte, 1024*8)
 			for {
 				n, err := conn.Read(buf)
 				if err != nil {

@@ -47,6 +47,7 @@ func startServer(port int, wg *sync.WaitGroup) {
 		pulse.WithLogLevel[[]byte](slog.LevelError),
 		pulse.WithTaskType[[]byte](pulse.TaskTypeInEventLoop),
 		pulse.WithTriggerType[[]byte](pulse.TriggerTypeEdge),
+		pulse.WithEventLoopReadBufferSize[[]byte](8*1024),
 	)
 	if err != nil {
 		panic(err.Error())

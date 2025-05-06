@@ -40,7 +40,7 @@ func startServer(port int, multicore bool, wg *sync.WaitGroup) {
 	}
 
 	log.Printf("Starting gnet server on %s", addr)
-	if err := gnet.Run(echo, echo.addr, gnet.WithMulticore(multicore)); err != nil {
+	if err := gnet.Run(echo, echo.addr, gnet.WithMulticore(multicore), gnet.WithReadBufferCap(8*1024)); err != nil {
 		log.Printf("Server on port %d failed: %v", port, err)
 	}
 }
