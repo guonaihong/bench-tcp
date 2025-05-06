@@ -82,7 +82,7 @@ func main() {
 
 	var wg sync.WaitGroup
 
-	if false {
+	if true {
 		// Start a server for each port in the range
 		for port := portRange.Start; port <= portRange.End; port++ {
 			wg.Add(1)

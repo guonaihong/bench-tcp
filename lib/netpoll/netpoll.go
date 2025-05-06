@@ -65,6 +65,12 @@ func startServer(port int, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	gopool.SetCap(100000)
+
+	netpoll.Configure(netpoll.Config{
+		Runner: func(ctx context.Context, task func()) {
+			task()
+		},
+	})
 	network, address := "tcp", fmt.Sprintf("127.0.0.1:%d", port)
 	listener, err := netpoll.CreateListener(network, address)
 	if err != nil {

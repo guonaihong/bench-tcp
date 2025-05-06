@@ -8,7 +8,7 @@ ENABLED_SERVERS=(
     # "netpoll"
     # "gnet"
     # "gev"
-     "nbio"
+    "nbio"
     #"pulse"
 )
 

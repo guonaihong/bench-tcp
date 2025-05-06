@@ -1,5 +1,8 @@
 #!/bin/bash
 
+make clean
+make
+
 # Run benchmark with 1,000,000 concurrent connections
 "$(dirname "$0")/benchmark-core.sh" 1000000 100s
 
