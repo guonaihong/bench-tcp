@@ -6,7 +6,7 @@ toolchain go1.24.1
 
 require (
 	github.com/Allenxuxu/gev v0.3.0
-	github.com/antlabs/pulse v0.0.0-20250507003210-fbe14b7bac69
+	github.com/antlabs/pulse v0.0.0-20250507012159-54ccb2424567
 	github.com/cloudwego/netpoll v0.7.0
 	github.com/lesismal/nbio v1.6.4
 	github.com/panjf2000/gnet/v2 v2.3.3
