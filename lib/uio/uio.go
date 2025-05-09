@@ -39,6 +39,7 @@ func startServer(port int, wg *sync.WaitGroup, quit chan os.Signal) {
 	}
 
 	events.OnData = func(c uio.Conn) error {
+		c.SetNoDelay(false)
 		_, err := c.WriteTo(c)
 		return err
 	}
