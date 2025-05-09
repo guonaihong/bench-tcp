@@ -11,7 +11,7 @@ require (
 	github.com/lesismal/nbio v1.6.4
 	github.com/panjf2000/gnet/v2 v2.3.3
 	github.com/tidwall/evio v1.0.8
-	github.com/urpc/uio v0.0.0-20250417042948-d9796b9829ae
+	github.com/urpc/uio v0.0.0-20250508085931-41fe0b51baa5
 )
 
 require (
@@ -38,7 +38,7 @@ require (
 	go.uber.org/zap v1.21.0 // indirect
 	golang.org/x/crypto v0.22.0 // indirect
 	golang.org/x/sync v0.8.0 // indirect
-	golang.org/x/sys v0.32.0 // indirect
+	golang.org/x/sys v0.33.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 )

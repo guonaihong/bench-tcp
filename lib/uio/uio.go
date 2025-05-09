@@ -33,6 +33,7 @@ func startServer(port int, wg *sync.WaitGroup, quit chan os.Signal) {
 	var events uio.Events
 
 	events.MaxBufferSize = 8 * 1024
+	events.FullDuplex = true
 	events.OnOpen = func(c uio.Conn) {
 		log.Printf("[%d] connection opened: %s", port, c.RemoteAddr())
 	}

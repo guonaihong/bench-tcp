@@ -68,6 +68,7 @@ func main() {
 		log.Fatalf("Failed to get port range: %v", err)
 	}
 
+	fmt.Println("portRange", portRange)
 	var wg sync.WaitGroup
 
 	// Start a server for each port in the range

@@ -20,7 +20,7 @@ func NewServer(addr []string) *Server {
 	engine := nbio.NewEngine(nbio.Config{
 		Network:            "tcp",
 		Addrs:              addr,
-		MaxWriteBufferSize: 6 * 1024 * 1024,
+		MaxWriteBufferSize: 1024 * 1024 * 1024,
 		ReadBufferSize:     8 * 1024,
 		NPoller:            runtime.NumCPU(),
 		EpollMod:           nbio.EPOLLET,
