@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"runtime"
 	"sync"
 	"time"
 
@@ -64,13 +65,15 @@ func handle(ctx context.Context, connection netpoll.Connection) error {
 func startServer(port int, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	gopool.SetCap(100000)
+	gopool.SetCap(100)
 
 	netpoll.Configure(netpoll.Config{
+		PollerNum: runtime.NumCPU(),
 		Runner: func(ctx context.Context, task func()) {
 			task()
 		},
 	})
+
 	network, address := "tcp", fmt.Sprintf("127.0.0.1:%d", port)
 	listener, err := netpoll.CreateListener(network, address)
 	if err != nil {
