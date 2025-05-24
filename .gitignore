@@ -29,3 +29,5 @@ go.work.sum
 *.mac
 *.linux
 /bin
+/benchmark/output
+/benchmark/benchmark_results.md

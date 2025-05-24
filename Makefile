@@ -17,7 +17,7 @@ bin/$(notdir $(1)).linux:
 
 bin/$(notdir $(1)).mac:
 	@echo "Building $(1) for Mac..."
-	GOOS=darwin GOARCH=amd64 go build -o bin/$(notdir $(1)).mac ./$(1)
+	GOOS=darwin GOARCH=arm64 go build -o bin/$(notdir $(1)).mac ./$(1)
 endef
 
 # 为每个目标应用构建规则
