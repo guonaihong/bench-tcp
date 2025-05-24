@@ -33,7 +33,7 @@ func NewServer(addr []string) *Server {
 
 	// handle connection closed
 	engine.OnClose(func(c *nbio.Conn, err error) {
-		log.Printf("OnClose: %s, err: %v", c.RemoteAddr().String(), err)
+		// log.Printf("OnClose: %s, err: %v", c.RemoteAddr().String(), err)
 	})
 
 	// handle data

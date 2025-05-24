@@ -45,7 +45,7 @@ func startServer(port int, wg *sync.WaitGroup, quit chan os.Signal) {
 	}
 
 	events.OnClose = func(c uio.Conn, err error) {
-		log.Printf("[%d] connection closed: %s", port, c.RemoteAddr())
+		// log.Printf("[%d] connection closed: %s", port, c.RemoteAddr())
 	}
 
 	go func() {

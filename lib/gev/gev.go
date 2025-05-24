@@ -64,7 +64,7 @@ func (h *echoHandler) OnMessage(c *connection.Connection, ctx interface{}, data 
 
 // OnClose is called when a connection has been closed
 func (h *echoHandler) OnClose(c *connection.Connection) {
-	log.Printf("OnClose: %s", c.PeerAddr())
+	// log.Printf("OnClose: %s", c.PeerAddr())
 }
 
 func startServer(port int, wg *sync.WaitGroup) {
