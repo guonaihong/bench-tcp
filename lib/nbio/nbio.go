@@ -28,6 +28,7 @@ func NewServer(addr []string) *Server {
 
 	// handle new connection
 	engine.OnOpen(func(c *nbio.Conn) {
+		c.SetNoDelay(true)
 		// log.Printf("OnOpen: %s", c.RemoteAddr().String())
 	})
 
