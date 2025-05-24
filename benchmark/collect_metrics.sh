@@ -6,12 +6,13 @@ log_with_timestamp() {
 }
 
 # 收集性能指标的脚本
-# 用法: ./collect_metrics.sh <framework> <pid> <duration> <output_file>
+# 用法: ./collect_metrics.sh <framework> <pid> <duration> <output_file> <benchmark_pid>
 
 FRAMEWORK=$1
 PID=$2
 DURATION=$3
 OUTPUT_FILE=$4
+BENCHMARK_PID=$5  # 新增：基准测试脚本的PID，用于文件命名
 
 # 如果输出文件不存在，创建表头
 if [ ! -f "$OUTPUT_FILE" ]; then
@@ -45,29 +46,45 @@ end_mem_mb=$((end_mem_kb / 1024))
 log_with_timestamp "End metrics collected: CPU=$end_cpu%, Memory=$end_mem_percent% ($end_mem_mb MB)"
 
 # 从对应框架的TPS文件中提取数据
-TPS_FILE="$(dirname "$OUTPUT_FILE")/output/$FRAMEWORK.tps"
+TPS_FILE="$(dirname "$OUTPUT_FILE")/output/$FRAMEWORK.$BENCHMARK_PID.tps"
 start_tps="N/A"
 mid_tps="N/A"
 end_tps="N/A"
 
-# 等待一小段时间，确保主脚本完成TPS数据写入
-sleep 1
+# 等待TPS文件生成，最多重试5次
+log_with_timestamp "Waiting for TPS data file: $TPS_FILE"
+retry_count=0
+max_retries=5
 
-if [ -f "$TPS_FILE" ]; then
+while [ $retry_count -lt $max_retries ]; do
+    if [ -f "$TPS_FILE" ] && [ -s "$TPS_FILE" ]; then
+        log_with_timestamp "TPS file found and not empty"
+        break
+    fi
+    
+    retry_count=$((retry_count + 1))
+    log_with_timestamp "TPS file not ready, retry $retry_count/$max_retries..."
+    sleep 2
+done
+
+if [ -f "$TPS_FILE" ] && [ -s "$TPS_FILE" ]; then
     start_tps=$(grep "^start" "$TPS_FILE" | awk '{print $2}' | head -1)
     mid_tps=$(grep "^middle" "$TPS_FILE" | awk '{print $2}' | head -1)
     end_tps=$(grep "^end" "$TPS_FILE" | awk '{print $2}' | head -1)
     log_with_timestamp "TPS data extracted: Start=$start_tps, Middle=$mid_tps, End=$end_tps"
 else
-    log_with_timestamp "Warning: TPS file not found: $TPS_FILE"
+    log_with_timestamp "Warning: TPS file not found or empty after $max_retries retries: $TPS_FILE"
+    if [ -f "$TPS_FILE" ]; then
+        log_with_timestamp "TPS file content: $(cat "$TPS_FILE")"
+    fi
 fi
 
 # 将数据追加到markdown表格 - 修正内存单位为MB
 echo "| $FRAMEWORK | $start_tps | $mid_tps | $end_tps | $start_cpu% | $mid_cpu% | $end_cpu% | ${start_mem_mb}MB | ${mid_mem_mb}MB | ${end_mem_mb}MB |" >> "$OUTPUT_FILE"
 
-# 保存CPU和内存数据到单独文件
-CPU_FILE="$(dirname "$OUTPUT_FILE")/output/$FRAMEWORK.cpu"
-MEM_FILE="$(dirname "$OUTPUT_FILE")/output/$FRAMEWORK.mem"
+# 保存CPU和内存数据到单独文件（也使用PID后缀）
+CPU_FILE="$(dirname "$OUTPUT_FILE")/output/$FRAMEWORK.$BENCHMARK_PID.cpu"
+MEM_FILE="$(dirname "$OUTPUT_FILE")/output/$FRAMEWORK.$BENCHMARK_PID.mem"
 
 echo "start $start_cpu" > "$CPU_FILE"
 echo "middle $mid_cpu" >> "$CPU_FILE"

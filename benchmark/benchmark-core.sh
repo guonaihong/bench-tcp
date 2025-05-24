@@ -94,8 +94,8 @@ run_benchmark() {
     fi
 
     log_with_timestamp "Running bench-tcp with parameters: -d $duration -c $concurrency --addr 127.0.0.1:$start_port-$end_port --open-tmp-result $EXTRA_ARGS"
-    # 运行bench-tcp客户端并将输出重定向到对应的.tps文件
-    "$BENCH_BIN" -d "$duration" -c "$concurrency" --addr "127.0.0.1:$start_port-$end_port" --open-tmp-result $EXTRA_ARGS | tee "$SCRIPT_DIR/output/$server.tps"
+    # 运行bench-tcp客户端并将输出重定向到对应的.tps文件（使用PID后缀）
+    "$BENCH_BIN" -d "$duration" -c "$concurrency" --addr "127.0.0.1:$start_port-$end_port" --open-tmp-result $EXTRA_ARGS | tee "$SCRIPT_DIR/output/$server.$$.tps"
 }
 
 log_with_timestamp "Running benchmarks with concurrency: $CONCURRENCY, duration: $DURATION"
@@ -145,7 +145,7 @@ for server in "${ENABLED_SERVERS[@]}"; do
         DURATION_SECONDS=$(duration_to_seconds "$DURATION")
         log_with_timestamp "Duration converted: $DURATION -> $DURATION_SECONDS seconds"
         
-        "$SCRIPT_DIR/collect_metrics.sh" "$server" $SERVER_PID $DURATION_SECONDS "$OUTPUT_FILE" &
+        "$SCRIPT_DIR/collect_metrics.sh" "$server" $SERVER_PID $DURATION_SECONDS "$OUTPUT_FILE" $$ &
         COLLECTOR_PID=$!
     else
         log_with_timestamp "Warning: PID file not found for $server: $SERVER_PID_FILE"
@@ -153,31 +153,52 @@ for server in "${ENABLED_SERVERS[@]}"; do
     fi
     
     # Run the benchmark with specified parameters and capture output
+    log_with_timestamp "Starting benchmark for $server..."
     BENCHMARK_OUTPUT=$(run_benchmark "$server" "$DURATION" "$CONCURRENCY" "${!start_var}" "${!end_var}")
+    BENCHMARK_RESULT=$?
+    
+    if [ $BENCHMARK_RESULT -ne 0 ]; then
+        log_with_timestamp "Error: Benchmark failed for $server with exit code $BENCHMARK_RESULT"
+    fi
     
     # 解析TPS数据
-    echo "$BENCHMARK_OUTPUT" | grep -E "[0-9]+s:[0-9]+/s" | tail -1 > "$SCRIPT_DIR/output/$server.tps.raw"
+    log_with_timestamp "Parsing TPS data for $server..."
+    echo "$BENCHMARK_OUTPUT" | grep -E "[0-9]+s:[0-9]+/s" | tail -1 > "$SCRIPT_DIR/output/$server.$$.tps.raw"
     
-    # 从最后一行TPS统计中提取开始、中间、结束的TPS值
-    if [ -f "$SCRIPT_DIR/output/$server.tps.raw" ]; then
-        TPS_LINE=$(cat "$SCRIPT_DIR/output/$server.tps.raw")
+    # 检查是否有TPS数据
+    if [ ! -s "$SCRIPT_DIR/output/$server.$$.tps.raw" ]; then
+        log_with_timestamp "Warning: No TPS data found for $server. Benchmark output was:"
+        log_with_timestamp "$BENCHMARK_OUTPUT"
+        # 创建空的TPS文件以避免后续错误
+        echo "start N/A" > "$SCRIPT_DIR/output/$server.$$.tps"
+        echo "middle N/A" >> "$SCRIPT_DIR/output/$server.$$.tps"
+        echo "end N/A" >> "$SCRIPT_DIR/output/$server.$$.tps"
+    else
+        # 从最后一行TPS统计中提取开始、中间、结束的TPS值
+        TPS_LINE=$(cat "$SCRIPT_DIR/output/$server.$$.tps.raw")
+        log_with_timestamp "TPS raw data for $server: $TPS_LINE"
+        
         # 提取所有TPS值：1s:485714/s 2s:502793/s ... 格式
         ALL_TPS=($(echo "$TPS_LINE" | grep -o '[0-9]\+s:[0-9]\+/s' | sed 's/[0-9]\+s:\([0-9]\+\)\/s/\1/'))
         TPS_COUNT=${#ALL_TPS[@]}
+        
         if [ $TPS_COUNT -gt 0 ]; then
             START_TPS=${ALL_TPS[0]}
             MIDDLE_TPS=${ALL_TPS[$((TPS_COUNT/2))]}
             END_TPS=${ALL_TPS[$((TPS_COUNT-1))]}
+            log_with_timestamp "Extracted TPS values for $server: Start=$START_TPS, Middle=$MIDDLE_TPS, End=$END_TPS"
         else
+            log_with_timestamp "Warning: Failed to parse TPS values from: $TPS_LINE"
             START_TPS="N/A"
             MIDDLE_TPS="N/A" 
             END_TPS="N/A"
         fi
         
         # 保存TPS数据到标准格式文件
-        echo "start $START_TPS" > "$SCRIPT_DIR/output/$server.tps"
-        echo "middle $MIDDLE_TPS" >> "$SCRIPT_DIR/output/$server.tps"
-        echo "end $END_TPS" >> "$SCRIPT_DIR/output/$server.tps"
+        echo "start $START_TPS" > "$SCRIPT_DIR/output/$server.$$.tps"
+        echo "middle $MIDDLE_TPS" >> "$SCRIPT_DIR/output/$server.$$.tps"
+        echo "end $END_TPS" >> "$SCRIPT_DIR/output/$server.$$.tps"
+        log_with_timestamp "TPS data saved to $SCRIPT_DIR/output/$server.$$.tps"
     fi
     
     # 等待性能数据收集完成
@@ -196,6 +217,6 @@ log_with_timestamp "Benchmark complete!"
 
 # 生成最终报表
 log_with_timestamp "Generating final report..."
-"$SCRIPT_DIR/generate_report.sh"
+"$SCRIPT_DIR/generate_report.sh" $$
 
 log_with_timestamp "Results saved to: $OUTPUT_FILE" 

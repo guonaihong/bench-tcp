@@ -1,10 +1,12 @@
 #!/bin/bash
 
 # 报表生成脚本
-# Usage: generate_report.sh
+# Usage: generate_report.sh [pid]
+# 如果提供PID参数，则只处理该PID的文件；否则处理最新的文件
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 OUTPUT_FILE="$SCRIPT_DIR/benchmark_results.md"
+TARGET_PID=$1  # 可选的PID参数
 
 # 创建报表文件头部
 echo "# Benchmark Results" > "$OUTPUT_FILE"
@@ -36,10 +38,36 @@ printf "%-6s-+-%-8s-+-%-8s-+-%-8s-+-%-7s-+-%-7s-+-%-7s-+-%-8s-+-%-8s-+-%-8s\n" \
     "------" "--------" "--------" "--------" "-------" "-------" "-------" "--------" "--------" "--------"
 
 # 处理每个框架的数据并格式化输出
-for tps_file in "$SCRIPT_DIR/output"/*.tps; do
+if [ -n "$TARGET_PID" ]; then
+    # 如果指定了PID，处理该PID的文件
+    tps_pattern="$SCRIPT_DIR/output/*.$TARGET_PID.tps"
+else
+    # 如果没有指定PID，处理最新的文件（按修改时间排序）
+    tps_pattern="$SCRIPT_DIR/output/*.tps"
+fi
+
+# 获取所有匹配的TPS文件
+for tps_file in $tps_pattern; do
     if [ -f "$tps_file" ]; then
-        # 从文件名提取框架名称
-        framework=$(basename "$tps_file" .tps)
+        # 从文件名提取框架名称和PID
+        filename=$(basename "$tps_file")
+        if [[ "$filename" =~ ^(.+)\.([0-9]+)\.tps$ ]]; then
+            framework="${BASH_REMATCH[1]}"
+            file_pid="${BASH_REMATCH[2]}"
+        else
+            # 兼容旧格式（没有PID的文件名）
+            framework=$(basename "$tps_file" .tps)
+            file_pid=""
+        fi
+        
+        # 如果没有指定TARGET_PID，需要确保我们处理的是每个框架的最新文件
+        if [ -z "$TARGET_PID" ]; then
+            # 查找该框架的最新文件
+            latest_file=$(ls -t "$SCRIPT_DIR/output/$framework".*.tps 2>/dev/null | head -1)
+            if [ "$tps_file" != "$latest_file" ]; then
+                continue  # 跳过不是最新的文件
+            fi
+        fi
         
         # 读取TPS数据
         if [ -f "$tps_file" ]; then
@@ -53,7 +81,11 @@ for tps_file in "$SCRIPT_DIR/output"/*.tps; do
         fi
         
         # 读取CPU数据
-        cpu_file="$SCRIPT_DIR/output/$framework.cpu"
+        if [ -n "$file_pid" ]; then
+            cpu_file="$SCRIPT_DIR/output/$framework.$file_pid.cpu"
+        else
+            cpu_file="$SCRIPT_DIR/output/$framework.cpu"
+        fi
         if [ -f "$cpu_file" ]; then
             start_cpu=$(grep "^start" "$cpu_file" | awk '{print $2}' || echo "N/A")
             middle_cpu=$(grep "^middle" "$cpu_file" | awk '{print $2}' || echo "N/A")
@@ -65,7 +97,11 @@ for tps_file in "$SCRIPT_DIR/output"/*.tps; do
         fi
         
         # 读取内存数据
-        mem_file="$SCRIPT_DIR/output/$framework.mem"
+        if [ -n "$file_pid" ]; then
+            mem_file="$SCRIPT_DIR/output/$framework.$file_pid.mem"
+        else
+            mem_file="$SCRIPT_DIR/output/$framework.mem"
+        fi
         if [ -f "$mem_file" ]; then
             start_mem=$(grep "^start" "$mem_file" | awk '{print $2}' || echo "N/A")
             middle_mem=$(grep "^middle" "$mem_file" | awk '{print $2}' || echo "N/A")
