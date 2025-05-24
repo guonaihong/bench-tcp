@@ -13,12 +13,29 @@ type PortRange struct {
 	End   int
 }
 
+// Default port ranges for different libraries
+var defaultPortRanges = map[string]PortRange{
+	"NET_TCP": {Start: 1000, End: 1000},
+	"UIO":     {Start: 1100, End: 1100},
+	"EVIO":    {Start: 1200, End: 1200},
+	"NETPOLL": {Start: 1300, End: 1300},
+	"GNET":    {Start: 1400, End: 1400},
+	"GEV":     {Start: 1500, End: 1500},
+	"NBIO":    {Start: 1600, End: 1600},
+	"PULSE":   {Start: 1700, End: 1700},
+}
+
 // GetPortRange returns the port range for a given library name
 func GetPortRange(libName string) (*PortRange, error) {
-	startPort := os.Getenv(fmt.Sprintf("%s_START_PORT", strings.ToUpper(libName)))
-	endPort := os.Getenv(fmt.Sprintf("%s_END_PORT", strings.ToUpper(libName)))
+	libName = strings.ToUpper(libName)
+	startPort := os.Getenv(fmt.Sprintf("%s_START_PORT", libName))
+	endPort := os.Getenv(fmt.Sprintf("%s_END_PORT", libName))
 
+	// If environment variables are not set, use default values
 	if startPort == "" || endPort == "" {
+		if defaultRange, ok := defaultPortRanges[libName]; ok {
+			return &defaultRange, nil
+		}
 		return nil, fmt.Errorf("port range not configured for library %s", libName)
 	}
 
