@@ -21,7 +21,7 @@ func (h *handler) OnOpen(c *pulse.Conn, err error) {
 		fmt.Println("OnOpen error:", err)
 		return
 	}
-	fmt.Println("OnOpen success")
+	// fmt.Println("OnOpen success")
 }
 
 func (h *handler) OnData(c *pulse.Conn, data []byte) {

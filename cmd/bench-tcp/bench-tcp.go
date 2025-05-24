@@ -44,6 +44,7 @@ type Client struct {
 	SaveErr        bool          `clop:"long" usage:"Save error log"`
 	LimitPortRange int           `clop:"short;long" usage:"Limit port range (1 for limited, -1 for unlimited)" default:"1"`
 	VerifyFile     string        `clop:"long" usage:"File path to verify echo content"`
+	Debug          bool          `clop:"long" usage:"Debug mode"`
 	mu             sync.Mutex
 
 	result []int
@@ -177,7 +178,9 @@ func (e *echoHandler) readLoop(c net.Conn) {
 			case _, ok := <-e.data:
 				if !ok {
 					c.Close()
-					fmt.Printf("data chan close\n")
+					if e.Debug {
+						fmt.Printf("data chan close\n")
+					}
 					return
 				}
 			default:
@@ -258,7 +261,9 @@ func (c *Client) consumer(data chan struct{}) {
 			defer wg.Done()
 
 			c.runTest(c.Total/c.Concurrency, data)
-			fmt.Printf("bye bye consumer:%d\n", i)
+			if c.Debug {
+				fmt.Printf("bye bye consumer:%d\n", i)
+			}
 		}(i)
 	}
 }

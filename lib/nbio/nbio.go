@@ -28,7 +28,7 @@ func NewServer(addr []string) *Server {
 
 	// handle new connection
 	engine.OnOpen(func(c *nbio.Conn) {
-		log.Printf("OnOpen: %s", c.RemoteAddr().String())
+		// log.Printf("OnOpen: %s", c.RemoteAddr().String())
 	})
 
 	// handle connection closed
