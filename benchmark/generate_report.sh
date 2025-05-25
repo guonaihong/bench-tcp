@@ -14,7 +14,7 @@ echo "" >> "$OUTPUT_FILE"
 echo "Test completed at: $(date)" >> "$OUTPUT_FILE"
 echo "Operating System: $(uname -s)" >> "$OUTPUT_FILE"
 echo "" >> "$OUTPUT_FILE"
-echo "| 框架名 | TPS(开始) | TPS(中间) | TPS(结束) | CPU(开始)% | CPU(中间)% | CPU(结束)% | 内存(开始)MB | 内存(中间)MB | 内存(结束)MB |" >> "$OUTPUT_FILE"
+echo "| 框架名 | TPS(开始) | TPS(中间) | TPS(结束) | CPU(最大)% | CPU(最小)% | CPU(平均)% | 内存(最大)MB | 内存(最小)MB | 内存(平均)MB |" >> "$OUTPUT_FILE"
 echo "|--------|-----------|-----------|-----------|------------|------------|------------|-------------|-------------|-------------|" >> "$OUTPUT_FILE"
 
 # 在屏幕上显示生成的报表
@@ -32,7 +32,7 @@ echo ""
 
 # 打印表格头部 - 使用固定宽度对齐
 printf "%-6s | %-8s | %-8s | %-8s | %-7s | %-7s | %-7s | %-8s | %-8s | %-8s\n" \
-    "框架" "TPS开始" "TPS中间" "TPS结束" "CPU开始" "CPU中间" "CPU结束" "内存开始" "内存中间" "内存结束"
+    "框架" "TPS开始" "TPS中间" "TPS结束" "CPU最大" "CPU最小" "CPU平均" "内存最大" "内存最小" "内存平均"
 
 printf "%-6s-+-%-8s-+-%-8s-+-%-8s-+-%-7s-+-%-7s-+-%-7s-+-%-8s-+-%-8s-+-%-8s\n" \
     "------" "--------" "--------" "--------" "-------" "-------" "-------" "--------" "--------" "--------"
@@ -87,13 +87,13 @@ for tps_file in $tps_pattern; do
             cpu_file="$SCRIPT_DIR/output/$framework.cpu"
         fi
         if [ -f "$cpu_file" ]; then
-            start_cpu=$(grep "^start" "$cpu_file" | awk '{print $2}' || echo "N/A")
-            middle_cpu=$(grep "^middle" "$cpu_file" | awk '{print $2}' || echo "N/A")
-            end_cpu=$(grep "^end" "$cpu_file" | awk '{print $2}' || echo "N/A")
+            max_cpu=$(grep "^max" "$cpu_file" | awk '{print $2}' || echo "N/A")
+            min_cpu=$(grep "^min" "$cpu_file" | awk '{print $2}' || echo "N/A")
+            avg_cpu=$(grep "^avg" "$cpu_file" | awk '{print $2}' || echo "N/A")
         else
-            start_cpu="N/A"
-            middle_cpu="N/A"
-            end_cpu="N/A"
+            max_cpu="N/A"
+            min_cpu="N/A"
+            avg_cpu="N/A"
         fi
         
         # 读取内存数据
@@ -103,23 +103,23 @@ for tps_file in $tps_pattern; do
             mem_file="$SCRIPT_DIR/output/$framework.mem"
         fi
         if [ -f "$mem_file" ]; then
-            start_mem=$(grep "^start" "$mem_file" | awk '{print $2}' || echo "N/A")
-            middle_mem=$(grep "^middle" "$mem_file" | awk '{print $2}' || echo "N/A")
-            end_mem=$(grep "^end" "$mem_file" | awk '{print $2}' || echo "N/A")
+            max_mem=$(grep "^max" "$mem_file" | awk '{print $2}' || echo "N/A")
+            min_mem=$(grep "^min" "$mem_file" | awk '{print $2}' || echo "N/A")
+            avg_mem=$(grep "^avg" "$mem_file" | awk '{print $2}' || echo "N/A")
         else
-            start_mem="N/A"
-            middle_mem="N/A"
-            end_mem="N/A"
+            max_mem="N/A"
+            min_mem="N/A"
+            avg_mem="N/A"
         fi
         
         # 格式化打印到屏幕
         printf "%-6s | %-8s | %-8s | %-8s | %-7s | %-7s | %-7s | %-8s | %-8s | %-8s\n" \
             "$framework" "$start_tps" "$middle_tps" "$end_tps" \
-            "${start_cpu}%" "${middle_cpu}%" "${end_cpu}%" \
-            "${start_mem}MB" "${middle_mem}MB" "${end_mem}MB"
+            "${max_cpu}%" "${min_cpu}%" "${avg_cpu}%" \
+            "${max_mem}MB" "${min_mem}MB" "${avg_mem}MB"
         
         # 写入到文件（保持原格式）
-        echo "| $framework | $start_tps | $middle_tps | $end_tps | $start_cpu% | $middle_cpu% | $end_cpu% | ${start_mem}MB | ${middle_mem}MB | ${end_mem}MB |" >> "$OUTPUT_FILE"
+        echo "| $framework | $start_tps | $middle_tps | $end_tps | $max_cpu% | $min_cpu% | $avg_cpu% | ${max_mem}MB | ${min_mem}MB | ${avg_mem}MB |" >> "$OUTPUT_FILE"
     fi
 done
 
