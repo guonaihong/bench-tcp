@@ -66,14 +66,20 @@ for ((i=1; i<=total_samples; i++)); do
         fi
     else
         # Linux 系统
-        top_output=$(top -p $PID -n 1 -b 2>/dev/null | tail -n +8 | head -1)
+        # 使用更精确的top命令，确保获取正确的进程行
+        top_output=$(top -p $PID -n 1 -b 2>/dev/null | grep "^ *$PID " | head -1)
+        
         if [ -n "$top_output" ]; then
+            # Linux top 输出格式通常是：PID USER PR NI VIRT RES SHR S %CPU %MEM TIME+ COMMAND
             current_cpu=$(echo "$top_output" | awk '{print $9}')
-            current_mem_percent=$(echo "$top_output" | awk '{print $10}')
-            # 获取系统总内存来计算实际内存使用量
-            total_mem_kb=$(grep MemTotal /proc/meminfo | awk '{print $2}')
-            total_mem_mb=$((total_mem_kb / 1024))
-            current_mem_mb=$(echo "scale=0; $total_mem_mb * $current_mem_percent / 100" | bc)
+            
+            # 直接使用RES字段（实际内存使用，单位KB），更准确
+            current_mem_res=$(echo "$top_output" | awk '{print $6}')
+            if [ -n "$current_mem_res" ] && [ "$current_mem_res" -gt 0 ]; then
+                current_mem_mb=$((current_mem_res / 1024))
+            else
+                current_mem_mb="0"
+            fi
         else
             # 如果top命令失败，回退到ps命令
             current_cpu=$(ps -p $PID -o %cpu --no-headers 2>/dev/null | tr -d ' ')
