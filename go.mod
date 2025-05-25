@@ -8,10 +8,10 @@ require (
 	github.com/Allenxuxu/gev v0.3.0
 	github.com/antlabs/pulse v0.0.0-20250507012159-54ccb2424567
 	github.com/cloudwego/netpoll v0.7.0
-	github.com/lesismal/nbio v1.6.4
+	github.com/lesismal/nbio v1.6.5-0.20250518062148-fa57bdac8a64
 	github.com/panjf2000/gnet/v2 v2.3.3
 	github.com/tidwall/evio v1.0.8
-	github.com/urpc/uio v0.0.0-20250508085931-41fe0b51baa5
+	github.com/urpc/uio v0.0.0-20250525045840-839746f008a0
 )
 
 require (

@@ -35,11 +35,11 @@ func startServer(port int, wg *sync.WaitGroup, quit chan os.Signal) {
 	events.MaxBufferSize = 8 * 1024
 	events.FullDuplex = true
 	events.OnOpen = func(c uio.Conn) {
+		c.SetNoDelay(true)
 		// log.Printf("[%d] connection opened: %s", port, c.RemoteAddr())
 	}
 
 	events.OnData = func(c uio.Conn) error {
-		c.SetNoDelay(true)
 		_, err := c.WriteTo(c)
 		return err
 	}
