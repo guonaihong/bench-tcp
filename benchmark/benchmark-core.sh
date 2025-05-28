@@ -207,6 +207,10 @@ for server in "${ENABLED_SERVERS[@]}"; do
     fi
     
     log_with_timestamp "Completed benchmarking $server"
+    
+    # 在每个框架运行完后等待4秒
+    log_with_timestamp "Waiting 4 seconds before next framework..."
+    sleep 4
 done
 
 # Stop all servers
