@@ -16,8 +16,8 @@ BENCHMARK_PID=$5  # 新增：基准测试脚本的PID，用于文件命名
 
 # 如果输出文件不存在，创建表头
 if [ ! -f "$OUTPUT_FILE" ]; then
-    echo "| 框架名 | TPS(开始) | TPS(中间) | TPS(结束) | CPU(开始) | CPU(中间) | CPU(结束) | 内存(开始) | 内存(中间) | 内存(结束) |" > "$OUTPUT_FILE"
-    echo "|--------|-----------|-----------|-----------|-----------|-----------|-----------|------------|------------|------------|" >> "$OUTPUT_FILE"
+    echo "| 框架名 | TPS(开始) | TPS(中间) | TPS(结束) | CPU(开始) | CPU(中间) | CPU(结束) | 内存(开始) | 内存(中间) | 内存(结束) | 线程数(开始) | 线程数(中间) | 线程数(结束) |" > "$OUTPUT_FILE"
+    echo "|--------|-----------|-----------|-----------|-----------|-----------|-----------|------------|------------|------------|--------------|--------------|--------------|" >> "$OUTPUT_FILE"
 fi
 
 log_with_timestamp "=================== Starting metrics collection for $FRAMEWORK (PID: $PID) ==================="
@@ -25,6 +25,7 @@ log_with_timestamp "=================== Starting metrics collection for $FRAMEWO
 # 初始化数组存储CPU和内存数据
 cpu_values=()
 mem_values=()
+thread_values=()  # 新增：存储线程数数据
 
 # 采样间隔（秒）
 SAMPLE_INTERVAL=1
@@ -94,6 +95,27 @@ for ((i=1; i<=total_samples; i++)); do
         break
     fi
     
+    # 获取线程数
+    if [ "$OS_TYPE" = "Darwin" ]; then
+        # macOS: 使用ps命令获取线程数
+        thread_count=$(ps -M -p $PID 2>/dev/null | wc -l | tr -d ' ')
+        # ps -M 包含表头，所以需要减1
+        thread_count=$((thread_count - 1))
+    else
+        # Linux: 使用/proc/PID/stat获取线程数，或者ps -eLf
+        if [ -f "/proc/$PID/status" ]; then
+            thread_count=$(grep "^Threads:" /proc/$PID/status | awk '{print $2}')
+        else
+            # 备用方法：使用ps命令
+            thread_count=$(ps -eLf | grep "^ *[^ ]* *$PID " | wc -l | tr -d ' ')
+        fi
+    fi
+    
+    # 确保线程数是有效数值
+    if ! [[ "$thread_count" =~ ^[0-9]+$ ]] || [ "$thread_count" -le 0 ]; then
+        thread_count="1"  # 默认至少有1个线程
+    fi
+    
     # 确保数值有效
     if ! [[ "$current_cpu" =~ ^[0-9]+\.?[0-9]*$ ]]; then
         current_cpu="0.0"
@@ -105,8 +127,9 @@ for ((i=1; i<=total_samples; i++)); do
     # 存储数据
     cpu_values+=("$current_cpu")
     mem_values+=("$current_mem_mb")
+    thread_values+=("$thread_count")
     
-    log_with_timestamp "Sample $i/$total_samples: CPU=${current_cpu}%, Memory=${current_mem_mb}MB (via top)"
+    log_with_timestamp "Sample $i/$total_samples: CPU=${current_cpu}%, Memory=${current_mem_mb}MB, Threads=${thread_count} (via top)"
     
     # 等待下一次采样（除了最后一次）
     if [ $i -lt $total_samples ]; then
@@ -177,6 +200,38 @@ fi
 log_with_timestamp "CPU Statistics: Max=${max_cpu}%, Min=${min_cpu}%, Avg=${avg_cpu}%"
 log_with_timestamp "Memory Statistics: Max=${max_mem}MB, Min=${min_mem}MB, Avg=${avg_mem}MB"
 
+# 计算线程数统计值
+if [ ${#thread_values[@]} -gt 0 ]; then
+    # 计算最大值
+    max_threads=${thread_values[0]}
+    for threads in "${thread_values[@]}"; do
+        if [ $threads -gt $max_threads ]; then
+            max_threads=$threads
+        fi
+    done
+    
+    # 计算最小值
+    min_threads=${thread_values[0]}
+    for threads in "${thread_values[@]}"; do
+        if [ $threads -lt $min_threads ]; then
+            min_threads=$threads
+        fi
+    done
+    
+    # 计算平均值
+    sum_threads=0
+    for threads in "${thread_values[@]}"; do
+        sum_threads=$((sum_threads + threads))
+    done
+    avg_threads=$((sum_threads / ${#thread_values[@]}))
+else
+    max_threads="N/A"
+    min_threads="N/A"
+    avg_threads="N/A"
+fi
+
+log_with_timestamp "Thread Statistics: Max=${max_threads}, Min=${min_threads}, Avg=${avg_threads}"
+
 # 从对应框架的TPS文件中提取数据
 TPS_FILE="$(dirname "$OUTPUT_FILE")/output/$FRAMEWORK.$BENCHMARK_PID.tps"
 start_tps="N/A"
@@ -212,11 +267,12 @@ else
 fi
 
 # 将数据追加到markdown表格 - 使用新的统计格式
-echo "| $FRAMEWORK | $start_tps | $mid_tps | $end_tps | $max_cpu% | $min_cpu% | $avg_cpu% | ${max_mem}MB | ${min_mem}MB | ${avg_mem}MB |" >> "$OUTPUT_FILE"
+echo "| $FRAMEWORK | $start_tps | $mid_tps | $end_tps | $max_cpu% | $min_cpu% | $avg_cpu% | ${max_mem}MB | ${min_mem}MB | ${avg_mem}MB | $max_threads | $min_threads | $avg_threads |" >> "$OUTPUT_FILE"
 
-# 保存CPU和内存数据到单独文件（也使用PID后缀）
+# 保存CPU、内存和线程数数据到单独文件（也使用PID后缀）
 CPU_FILE="$(dirname "$OUTPUT_FILE")/output/$FRAMEWORK.$BENCHMARK_PID.cpu"
 MEM_FILE="$(dirname "$OUTPUT_FILE")/output/$FRAMEWORK.$BENCHMARK_PID.mem"
+THREAD_FILE="$(dirname "$OUTPUT_FILE")/output/$FRAMEWORK.$BENCHMARK_PID.threads"
 
 echo "max $max_cpu" > "$CPU_FILE"
 echo "min $min_cpu" >> "$CPU_FILE"
@@ -225,5 +281,9 @@ echo "avg $avg_cpu" >> "$CPU_FILE"
 echo "max $max_mem" > "$MEM_FILE"
 echo "min $min_mem" >> "$MEM_FILE"
 echo "avg $avg_mem" >> "$MEM_FILE"
+
+echo "max $max_threads" > "$THREAD_FILE"
+echo "min $min_threads" >> "$THREAD_FILE"
+echo "avg $avg_threads" >> "$THREAD_FILE"
 
 log_with_timestamp "Metrics collection completed for $FRAMEWORK" 

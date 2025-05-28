@@ -21,6 +21,7 @@ func (h *handler) OnOpen(c *pulse.Conn, err error) {
 		fmt.Println("OnOpen error:", err)
 		return
 	}
+	c.SetNoDelay(true)
 	// fmt.Println("OnOpen success")
 }
 
@@ -46,7 +47,7 @@ func startServer(port int, wg *sync.WaitGroup) {
 		pulse.WithCallback(&handler{}),
 		pulse.WithLogLevel[[]byte](slog.LevelError),
 		pulse.WithTaskType[[]byte](pulse.TaskTypeInEventLoop),
-		pulse.WithTriggerType[[]byte](pulse.TriggerTypeEdge),
+		pulse.WithTriggerType[[]byte](pulse.TriggerTypeLevel),
 		pulse.WithEventLoopReadBufferSize[[]byte](8*1024),
 	)
 	if err != nil {
