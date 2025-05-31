@@ -17,8 +17,9 @@ fi
 # Function to get port range for a server
 get_port_range() {
     local lib_name=$1
-    local start_var="${lib_name^^}_START_PORT"  # Convert to uppercase
-    local end_var="${lib_name^^}_END_PORT"
+    local lib_upper=$(echo "$lib_name" | tr '[:lower:]' '[:upper:]')  # Convert to uppercase using tr
+    local start_var="${lib_upper}_START_PORT"
+    local end_var="${lib_upper}_END_PORT"
     start_var=${start_var//-/_}  # Replace - with _ for variable names
     end_var=${end_var//-/_}
     
@@ -36,7 +37,7 @@ start_server() {
     echo "Starting $lib_name server on port range $start_port-$end_port"
     
     # Export port ranges as environment variables
-    local lib_upper="${lib_name^^}"
+    local lib_upper=$(echo "$lib_name" | tr '[:lower:]' '[:upper:]')  # Convert to uppercase using tr
     lib_upper="${lib_upper//-/_}"
     export "${lib_upper}_START_PORT"="$start_port"
     export "${lib_upper}_END_PORT"="$end_port"
