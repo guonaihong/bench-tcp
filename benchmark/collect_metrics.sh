@@ -1,52 +1,61 @@
 #!/bin/bash
 
-# 添加时间戳函数
+# Add timestamp function
 log_with_timestamp() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"
 }
 
-# 收集性能指标的脚本
-# 用法: ./collect_metrics.sh <framework> <pid> <duration> <output_file> <benchmark_pid>
+# Add signal handler
+cleanup() {
+    log_with_timestamp "Received interrupt signal, cleaning up..."
+    exit 0
+}
+
+# Set signal handler
+trap cleanup SIGINT SIGTERM
+
+# Performance metrics collection script
+# Usage: ./collect_metrics.sh <framework> <pid> <duration> <output_file> <benchmark_pid>
 
 FRAMEWORK=$1
 PID=$2
 DURATION=$3
 OUTPUT_FILE=$4
-BENCHMARK_PID=$5  # 新增：基准测试脚本的PID，用于文件命名
+BENCHMARK_PID=$5  # Added: benchmark script PID for file naming
 
-# 如果输出文件不存在，创建表头
+# Create table header if output file doesn't exist
 if [ ! -f "$OUTPUT_FILE" ]; then
-    echo "| 框架名 | TPS(开始) | TPS(中间) | TPS(结束) | CPU(开始) | CPU(中间) | CPU(结束) | 内存(开始) | 内存(中间) | 内存(结束) | 线程数(开始) | 线程数(中间) | 线程数(结束) |" > "$OUTPUT_FILE"
-    echo "|--------|-----------|-----------|-----------|-----------|-----------|-----------|------------|------------|------------|--------------|--------------|--------------|" >> "$OUTPUT_FILE"
+    echo "| Framework | TPS(Start) | TPS(Middle) | TPS(End) | CPU(Start) | CPU(Middle) | CPU(End) | Memory(Start) | Memory(Middle) | Memory(End) | Threads(Start) | Threads(Middle) | Threads(End) |" > "$OUTPUT_FILE"
+    echo "|-----------|------------|-------------|----------|------------|-------------|----------|---------------|----------------|-------------|---------------|----------------|--------------|" >> "$OUTPUT_FILE"
 fi
 
 log_with_timestamp "=================== Starting metrics collection for $FRAMEWORK (PID: $PID) ==================="
 
-# 初始化数组存储CPU和内存数据
+# Initialize array to store CPU and memory data
 cpu_values=()
 mem_values=()
-thread_values=()  # 新增：存储线程数数据
+thread_values=()  # Added: store thread count data
 
-# 采样间隔（秒）
+# Sampling interval (seconds)
 SAMPLE_INTERVAL=1
 total_samples=$((DURATION / SAMPLE_INTERVAL))
 
 log_with_timestamp "Will collect $total_samples samples every $SAMPLE_INTERVAL seconds for $DURATION seconds"
 
-# 持续收集数据
+# Collect data continuously
 for ((i=1; i<=total_samples; i++)); do
-    # 使用top命令收集CPU和内存使用率
-    # 检测操作系统类型以使用正确的top命令格式
+    # Use top command to collect CPU and memory usage
+    # Detect operating system type to use the correct top command format
     OS_TYPE=$(uname -s)
     
     if [ "$OS_TYPE" = "Darwin" ]; then
-        # macOS 系统
+        # macOS system
         top_output=$(top -pid $PID -l 1 -stats pid,cpu,mem 2>/dev/null | tail -n +13 | head -1)
         if [ -n "$top_output" ]; then
             current_cpu=$(echo "$top_output" | awk '{print $2}' | sed 's/%//')
             current_mem_str=$(echo "$top_output" | awk '{print $3}')
             
-            # 在macOS上，解析内存格式（如 3904K, 256M, 1.2G）
+            # On macOS, parse memory format (e.g., 3904K, 256M, 1.2G)
             if echo "$current_mem_str" | grep -q "K"; then
                 current_mem_kb=$(echo "$current_mem_str" | sed 's/K.*//')
                 current_mem_mb=$((current_mem_kb / 1024))
@@ -56,25 +65,25 @@ for ((i=1; i<=total_samples; i++)); do
                 current_mem_gb=$(echo "$current_mem_str" | sed 's/G.*//')
                 current_mem_mb=$(echo "$current_mem_gb * 1024" | bc)
             else
-                # 如果是纯数字，假设是KB
+                # If it's just a number, assume it's KB
                 current_mem_mb=$(echo "$current_mem_str / 1024" | bc 2>/dev/null || echo "0")
             fi
         else
-            # 如果top命令失败，回退到ps命令
+            # If top command fails, fall back to ps command
             current_cpu=$(ps -p $PID -o %cpu --no-headers 2>/dev/null | tr -d ' ')
             current_mem_kb=$(ps -p $PID -o rss --no-headers 2>/dev/null | tr -d ' ')
             current_mem_mb=$((current_mem_kb / 1024))
         fi
     else
-        # Linux 系统
-        # 使用更精确的top命令，确保获取正确的进程行
+        # Linux system
+        # Use a more precise top command to ensure getting the correct process line
         top_output=$(top -p $PID -n 1 -b 2>/dev/null | grep "^ *$PID " | head -1)
         
         if [ -n "$top_output" ]; then
-            # Linux top 输出格式通常是：PID USER PR NI VIRT RES SHR S %CPU %MEM TIME+ COMMAND
+            # Linux top output format is usually: PID USER PR NI VIRT RES SHR S %CPU %MEM TIME+ COMMAND
             current_cpu=$(echo "$top_output" | awk '{print $9}')
             
-            # 直接使用RES字段（实际内存使用，单位KB），更准确
+            # Directly use RES field (actual memory usage, in KB), more accurate
             current_mem_res=$(echo "$top_output" | awk '{print $6}')
             if [ -n "$current_mem_res" ] && [ "$current_mem_res" -gt 0 ]; then
                 current_mem_mb=$((current_mem_res / 1024))
@@ -82,41 +91,41 @@ for ((i=1; i<=total_samples; i++)); do
                 current_mem_mb="0"
             fi
         else
-            # 如果top命令失败，回退到ps命令
+            # If top command fails, fall back to ps command
             current_cpu=$(ps -p $PID -o %cpu --no-headers 2>/dev/null | tr -d ' ')
             current_mem_kb=$(ps -p $PID -o rss --no-headers 2>/dev/null | tr -d ' ')
             current_mem_mb=$((current_mem_kb / 1024))
         fi
     fi
     
-    # 检查进程是否还存在
+    # Check if process still exists
     if [ -z "$current_cpu" ] || [ -z "$current_mem_mb" ]; then
         log_with_timestamp "Warning: Process $PID not found at sample $i, stopping collection"
         break
     fi
     
-    # 获取线程数
+    # Get thread count
     if [ "$OS_TYPE" = "Darwin" ]; then
-        # macOS: 使用ps命令获取线程数
+        # macOS: Use ps command to get thread count
         thread_count=$(ps -M -p $PID 2>/dev/null | wc -l | tr -d ' ')
-        # ps -M 包含表头，所以需要减1
+        # ps -M includes header, so need to subtract 1
         thread_count=$((thread_count - 1))
     else
-        # Linux: 使用/proc/PID/stat获取线程数，或者ps -eLf
+        # Linux: Use /proc/PID/stat to get thread count, or ps -eLf
         if [ -f "/proc/$PID/status" ]; then
             thread_count=$(grep "^Threads:" /proc/$PID/status | awk '{print $2}')
         else
-            # 备用方法：使用ps命令
+            # Backup method: Use ps command
             thread_count=$(ps -eLf | grep "^ *[^ ]* *$PID " | wc -l | tr -d ' ')
         fi
     fi
     
-    # 确保线程数是有效数值
+    # Ensure thread count is valid
     if ! [[ "$thread_count" =~ ^[0-9]+$ ]] || [ "$thread_count" -le 0 ]; then
-        thread_count="1"  # 默认至少有1个线程
+        thread_count="1"  # Default at least 1 thread
     fi
     
-    # 确保数值有效
+    # Ensure values are valid
     if ! [[ "$current_cpu" =~ ^[0-9]+\.?[0-9]*$ ]]; then
         current_cpu="0.0"
     fi
@@ -124,22 +133,22 @@ for ((i=1; i<=total_samples; i++)); do
         current_mem_mb="0"
     fi
     
-    # 存储数据
+    # Store data
     cpu_values+=("$current_cpu")
     mem_values+=("$current_mem_mb")
     thread_values+=("$thread_count")
     
     log_with_timestamp "Sample $i/$total_samples: CPU=${current_cpu}%, Memory=${current_mem_mb}MB, Threads=${thread_count} (via top)"
     
-    # 等待下一次采样（除了最后一次）
+    # Wait for next sample (except for the last one)
     if [ $i -lt $total_samples ]; then
         sleep $SAMPLE_INTERVAL
     fi
 done
 
-# 计算CPU统计值
+# Calculate CPU statistics
 if [ ${#cpu_values[@]} -gt 0 ]; then
-    # 计算最大值
+    # Calculate max
     max_cpu=${cpu_values[0]}
     for cpu in "${cpu_values[@]}"; do
         if (( $(echo "$cpu > $max_cpu" | bc -l) )); then
@@ -147,7 +156,7 @@ if [ ${#cpu_values[@]} -gt 0 ]; then
         fi
     done
     
-    # 计算最小值
+    # Calculate min
     min_cpu=${cpu_values[0]}
     for cpu in "${cpu_values[@]}"; do
         if (( $(echo "$cpu < $min_cpu" | bc -l) )); then
@@ -155,7 +164,7 @@ if [ ${#cpu_values[@]} -gt 0 ]; then
         fi
     done
     
-    # 计算平均值
+    # Calculate avg
     sum_cpu=0
     for cpu in "${cpu_values[@]}"; do
         sum_cpu=$(echo "$sum_cpu + $cpu" | bc -l)
@@ -167,9 +176,9 @@ else
     avg_cpu="N/A"
 fi
 
-# 计算内存统计值
+# Calculate memory statistics
 if [ ${#mem_values[@]} -gt 0 ]; then
-    # 计算最大值
+    # Calculate max
     max_mem=${mem_values[0]}
     for mem in "${mem_values[@]}"; do
         if [ $mem -gt $max_mem ]; then
@@ -177,7 +186,7 @@ if [ ${#mem_values[@]} -gt 0 ]; then
         fi
     done
     
-    # 计算最小值
+    # Calculate min
     min_mem=${mem_values[0]}
     for mem in "${mem_values[@]}"; do
         if [ $mem -lt $min_mem ]; then
@@ -185,7 +194,7 @@ if [ ${#mem_values[@]} -gt 0 ]; then
         fi
     done
     
-    # 计算平均值
+    # Calculate avg
     sum_mem=0
     for mem in "${mem_values[@]}"; do
         sum_mem=$((sum_mem + mem))
@@ -200,9 +209,9 @@ fi
 log_with_timestamp "CPU Statistics: Max=${max_cpu}%, Min=${min_cpu}%, Avg=${avg_cpu}%"
 log_with_timestamp "Memory Statistics: Max=${max_mem}MB, Min=${min_mem}MB, Avg=${avg_mem}MB"
 
-# 计算线程数统计值
+# Calculate thread count statistics
 if [ ${#thread_values[@]} -gt 0 ]; then
-    # 计算最大值
+    # Calculate max
     max_threads=${thread_values[0]}
     for threads in "${thread_values[@]}"; do
         if [ $threads -gt $max_threads ]; then
@@ -210,7 +219,7 @@ if [ ${#thread_values[@]} -gt 0 ]; then
         fi
     done
     
-    # 计算最小值
+    # Calculate min
     min_threads=${thread_values[0]}
     for threads in "${thread_values[@]}"; do
         if [ $threads -lt $min_threads ]; then
@@ -218,7 +227,7 @@ if [ ${#thread_values[@]} -gt 0 ]; then
         fi
     done
     
-    # 计算平均值
+    # Calculate avg
     sum_threads=0
     for threads in "${thread_values[@]}"; do
         sum_threads=$((sum_threads + threads))
@@ -232,13 +241,13 @@ fi
 
 log_with_timestamp "Thread Statistics: Max=${max_threads}, Min=${min_threads}, Avg=${avg_threads}"
 
-# 从对应框架的TPS文件中提取数据
+# Extract data from corresponding framework's TPS file
 TPS_FILE="$(dirname "$OUTPUT_FILE")/output/$FRAMEWORK.$BENCHMARK_PID.tps"
 start_tps="N/A"
 mid_tps="N/A"
 end_tps="N/A"
 
-# 等待TPS文件生成，最多重试5次
+# Wait for TPS file to be generated, up to 5 retries
 log_with_timestamp "Waiting for TPS data file: $TPS_FILE"
 retry_count=0
 max_retries=5
@@ -266,10 +275,10 @@ else
     fi
 fi
 
-# 将数据追加到markdown表格 - 使用新的统计格式
+# Append data to markdown table - using new statistics format
 echo "| $FRAMEWORK | $start_tps | $mid_tps | $end_tps | $max_cpu% | $min_cpu% | $avg_cpu% | ${max_mem}MB | ${min_mem}MB | ${avg_mem}MB | $max_threads | $min_threads | $avg_threads |" >> "$OUTPUT_FILE"
 
-# 保存CPU、内存和线程数数据到单独文件（也使用PID后缀）
+# Save CPU, memory, and thread count data to separate file (also use PID suffix)
 CPU_FILE="$(dirname "$OUTPUT_FILE")/output/$FRAMEWORK.$BENCHMARK_PID.cpu"
 MEM_FILE="$(dirname "$OUTPUT_FILE")/output/$FRAMEWORK.$BENCHMARK_PID.mem"
 THREAD_FILE="$(dirname "$OUTPUT_FILE")/output/$FRAMEWORK.$BENCHMARK_PID.threads"

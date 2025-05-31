@@ -1,27 +1,40 @@
 #!/bin/bash
 
-# 添加时间戳函数
+# Add timestamp function
 log_with_timestamp() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"
 }
 
-# 添加时间转换函数，将时间字符串转换为秒数
+# Add signal handler
+cleanup() {
+    log_with_timestamp "Received interrupt signal, cleaning up..."
+    # Stop all servers
+    "$(dirname "$0")/stop-servers.sh"
+    # Kill all child processes
+    pkill -P $$ 2>/dev/null || true
+    exit 1
+}
+
+# Set signal handler
+trap cleanup SIGINT SIGTERM
+
+# Add time conversion function
 duration_to_seconds() {
     local duration=$1
-    local value=$(echo "$duration" | sed 's/[^0-9]*//g')  # 提取数字部分
-    local unit=$(echo "$duration" | sed 's/[0-9]*//g')    # 提取单位部分
+    local value=$(echo "$duration" | sed 's/[^0-9]*//g')  # Extract numeric part
+    local unit=$(echo "$duration" | sed 's/[0-9]*//g')    # Extract unit part
     
     case "$unit" in
-        "s"|"")  # 秒或无单位，默认为秒
+        "s"|"")  # Seconds or no unit, default to seconds
             echo "$value"
             ;;
-        "m")     # 分钟
+        "m")     # Minutes
             echo $((value * 60))
             ;;
-        "h")     # 小时
+        "h")     # Hours
             echo $((value * 3600))
             ;;
-        "d")     # 天
+        "d")     # Days
             echo $((value * 86400))
             ;;
         *)
@@ -126,8 +139,8 @@ echo "Operating System: $(uname -s)" >> "$OUTPUT_FILE"
 echo "Concurrency: $CONCURRENCY" >> "$OUTPUT_FILE"
 echo "Duration: $DURATION" >> "$OUTPUT_FILE"
 echo "" >> "$OUTPUT_FILE"
-echo "| 框架名 | TPS(开始) | TPS(中间) | TPS(结束) | CPU(开始) | CPU(中间) | CPU(结束) | 内存(开始) | 内存(中间) | 内存(结束) |" >> "$OUTPUT_FILE"
-echo "|--------|-----------|-----------|-----------|-----------|-----------|-----------|------------|------------|------------|" >> "$OUTPUT_FILE"
+echo "| Framework Name | TPS(Start) | TPS(Middle) | TPS(End) | CPU(Start) | CPU(Middle) | CPU(End) | Memory(Start) | Memory(Middle) | Memory(End) |" >> "$OUTPUT_FILE"
+echo "|----------------|------------|-------------|----------|------------|-------------|----------|---------------|---------------|-------------|" >> "$OUTPUT_FILE"
 
 # Run benchmarks for each enabled server
 log_with_timestamp "Running benchmarks..."
