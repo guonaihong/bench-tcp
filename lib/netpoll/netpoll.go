@@ -69,9 +69,9 @@ func startServer(port int, wg *sync.WaitGroup) {
 
 	netpoll.Configure(netpoll.Config{
 		PollerNum: runtime.NumCPU(),
-		// Runner: func(ctx context.Context, task func()) {
-		// 	task()
-		// },
+		Runner: func(ctx context.Context, task func()) {
+			task()
+		},
 	})
 
 	network, address := "tcp", fmt.Sprintf("127.0.0.1:%d", port)

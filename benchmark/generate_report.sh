@@ -14,8 +14,8 @@ echo "" >> "$OUTPUT_FILE"
 echo "Test completed at: $(date)" >> "$OUTPUT_FILE"
 echo "Operating System: $(uname -s)" >> "$OUTPUT_FILE"
 echo "" >> "$OUTPUT_FILE"
-echo "| 框架名 | TPS(开始) | TPS(中间) | TPS(结束) | CPU(最大)% | CPU(最小)% | CPU(平均)% | 内存(最大)MB | 内存(最小)MB | 内存(平均)MB | 线程(最大) | 线程(最小) | 线程(平均) |" >> "$OUTPUT_FILE"
-echo "|--------|-----------|-----------|-----------|------------|------------|------------|-------------|-------------|-------------|------------|------------|------------|" >> "$OUTPUT_FILE"
+echo "| 框架名 | TPS(开始) | TPS(中间) | TPS(结束) | CPU(最大)% | CPU(最小)% | CPU(平均)% | 内存(最大)MB | 内存(最小)MB | 内存(平均)MB | 线程(最大) | 线程(最小) | 线程(平均) | FD(最大) | FD(最小) | FD(平均) |" >> "$OUTPUT_FILE"
+echo "|--------|-----------|-----------|-----------|------------|------------|------------|-------------|-------------|-------------|------------|------------|------------|---------|---------|---------|" >> "$OUTPUT_FILE"
 
 # 在屏幕上显示生成的报表
 echo ""
@@ -31,11 +31,11 @@ echo "Operating System: $(uname -s)"
 echo ""
 
 # 打印表格头部 - 使用固定宽度对齐
-printf "%-8s | %-8s | %-8s | %-8s | %-8s | %-8s | %-8s | %-8s | %-8s | %-8s | %-8s | %-8s | %-8s\n" \
-    "Framework" "TPS-Start" "TPS-Mid" "TPS-End" "CPU-Max" "CPU-Min" "CPU-Avg" "Mem-Max" "Mem-Min" "Mem-Avg" "Thr-Max" "Thr-Min" "Thr-Avg"
+printf "%-8s | %-8s | %-8s | %-8s | %-8s | %-8s | %-8s | %-8s | %-8s | %-8s | %-8s | %-8s | %-8s | %-8s | %-8s | %-8s\n" \
+    "Framework" "TPS-Start" "TPS-Mid" "TPS-End" "CPU-Max" "CPU-Min" "CPU-Avg" "Mem-Max" "Mem-Min" "Mem-Avg" "Thr-Max" "Thr-Min" "Thr-Avg" "FD-Max" "FD-Min" "FD-Avg"
 
-printf "%-8s-+-%-8s-+-%-8s-+-%-8s-+-%-8s-+-%-8s-+-%-8s-+-%-8s-+-%-8s-+-%-8s-+-%-8s-+-%-8s-+-%-8s\n" \
-    "--------" "--------" "--------" "--------" "--------" "--------" "--------" "--------" "--------" "--------" "--------" "--------" "--------"
+printf "%-8s-+-%-8s-+-%-8s-+-%-8s-+-%-8s-+-%-8s-+-%-8s-+-%-8s-+-%-8s-+-%-8s-+-%-8s-+-%-8s-+-%-8s-+-%-8s-+-%-8s-+-%-8s\n" \
+    "--------" "--------" "--------" "--------" "--------" "--------" "--------" "--------" "--------" "--------" "--------" "--------" "--------" "--------" "--------" "--------"
 
 # 处理每个框架的数据并格式化输出
 if [ -n "$TARGET_PID" ]; then
@@ -128,15 +128,32 @@ for tps_file in $tps_pattern; do
             avg_threads="N/A"
         fi
         
+        # Read FD data
+        if [ -n "$file_pid" ]; then
+            fd_file="$SCRIPT_DIR/output/$framework.$file_pid.fd"
+        else
+            fd_file="$SCRIPT_DIR/output/$framework.fd"
+        fi
+        if [ -f "$fd_file" ]; then
+            max_fd=$(grep "^max" "$fd_file" | awk '{print $2}' || echo "N/A")
+            min_fd=$(grep "^min" "$fd_file" | awk '{print $2}' || echo "N/A")
+            avg_fd=$(grep "^avg" "$fd_file" | awk '{print $2}' || echo "N/A")
+        else
+            max_fd="N/A"
+            min_fd="N/A"
+            avg_fd="N/A"
+        fi
+        
         # 格式化打印到屏幕
-        printf "%-8s | %-8s | %-8s | %-8s | %-8s | %-8s | %-8s | %-8s | %-8s | %-8s | %-8s | %-8s | %-8s\n" \
+        printf "%-8s | %-8s | %-8s | %-8s | %-8s | %-8s | %-8s | %-8s | %-8s | %-8s | %-8s | %-8s | %-8s | %-8s | %-8s | %-8s\n" \
             "$framework" "$start_tps" "$middle_tps" "$end_tps" \
             "${max_cpu}%" "${min_cpu}%" "${avg_cpu}%" \
             "${max_mem}MB" "${min_mem}MB" "${avg_mem}MB" \
-            "$max_threads" "$min_threads" "$avg_threads"
+            "$max_threads" "$min_threads" "$avg_threads" \
+            "$max_fd" "$min_fd" "$avg_fd"
         
         # 写入到文件（保持原格式）
-        echo "| $framework | $start_tps | $middle_tps | $end_tps | $max_cpu% | $min_cpu% | $avg_cpu% | ${max_mem}MB | ${min_mem}MB | ${avg_mem}MB | $max_threads | $min_threads | $avg_threads |" >> "$OUTPUT_FILE"
+        echo "| $framework | $start_tps | $middle_tps | $end_tps | $max_cpu% | $min_cpu% | $avg_cpu% | ${max_mem}MB | ${min_mem}MB | ${avg_mem}MB | $max_threads | $min_threads | $avg_threads | $max_fd | $min_fd | $avg_fd |" >> "$OUTPUT_FILE"
     fi
 done
 

@@ -52,7 +52,7 @@ type echoHandler struct{}
 
 // OnConnect is called when a new connection has been opened
 func (h *echoHandler) OnConnect(c *connection.Connection) {
-	log.Printf("OnConnect: %s", c.PeerAddr())
+	// log.Printf("OnConnect: %s", c.PeerAddr())
 }
 
 // OnMessage is called when socket receives data from peer

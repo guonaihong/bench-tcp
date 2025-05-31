@@ -25,8 +25,8 @@ BENCHMARK_PID=$5  # Added: benchmark script PID for file naming
 
 # Create table header if output file doesn't exist
 if [ ! -f "$OUTPUT_FILE" ]; then
-    echo "| Framework | TPS(Start) | TPS(Middle) | TPS(End) | CPU(Start) | CPU(Middle) | CPU(End) | Memory(Start) | Memory(Middle) | Memory(End) | Threads(Start) | Threads(Middle) | Threads(End) |" > "$OUTPUT_FILE"
-    echo "|-----------|------------|-------------|----------|------------|-------------|----------|---------------|----------------|-------------|---------------|----------------|--------------|" >> "$OUTPUT_FILE"
+    echo "| Framework | TPS(Start) | TPS(Middle) | TPS(End) | CPU(Start) | CPU(Middle) | CPU(End) | Memory(Start) | Memory(Middle) | Memory(End) | Threads(Start) | Threads(Middle) | Threads(End) | FD(Start) | FD(Middle) | FD(End) |" > "$OUTPUT_FILE"
+    echo "|-----------|------------|-------------|----------|------------|-------------|----------|---------------|----------------|-------------|---------------|----------------|--------------|-----------|------------|----------|" >> "$OUTPUT_FILE"
 fi
 
 log_with_timestamp "=================== Starting metrics collection for $FRAMEWORK (PID: $PID) ==================="
@@ -35,6 +35,7 @@ log_with_timestamp "=================== Starting metrics collection for $FRAMEWO
 cpu_values=()
 mem_values=()
 thread_values=()  # Added: store thread count data
+fd_values=()      # Added: store file descriptor count data
 
 # Sampling interval (seconds)
 SAMPLE_INTERVAL=1
@@ -133,12 +134,35 @@ for ((i=1; i<=total_samples; i++)); do
         current_mem_mb="0"
     fi
     
+    # Get file descriptor count
+    if [ "$OS_TYPE" = "Darwin" ]; then
+        # macOS: Use lsof to count file descriptors
+        fd_count=$(lsof -p $PID 2>/dev/null | wc -l)
+        # lsof includes header, so subtract 1
+        fd_count=$((fd_count - 1))
+    else
+        # Linux: Use /proc/PID/fd to count file descriptors
+        if [ -d "/proc/$PID/fd" ]; then
+            fd_count=$(ls -l /proc/$PID/fd 2>/dev/null | wc -l)
+            # ls -l includes total line, so subtract 1
+            fd_count=$((fd_count - 1))
+        else
+            fd_count=0
+        fi
+    fi
+    
+    # Ensure fd count is valid
+    if ! [[ "$fd_count" =~ ^[0-9]+$ ]]; then
+        fd_count=0
+    fi
+    
     # Store data
     cpu_values+=("$current_cpu")
     mem_values+=("$current_mem_mb")
     thread_values+=("$thread_count")
+    fd_values+=("$fd_count")
     
-    log_with_timestamp "Sample $i/$total_samples: CPU=${current_cpu}%, Memory=${current_mem_mb}MB, Threads=${thread_count} (via top)"
+    log_with_timestamp "Sample $i/$total_samples: CPU=${current_cpu}%, Memory=${current_mem_mb}MB, Threads=${thread_count}, FD=${fd_count} (via top)"
     
     # Wait for next sample (except for the last one)
     if [ $i -lt $total_samples ]; then
@@ -241,6 +265,38 @@ fi
 
 log_with_timestamp "Thread Statistics: Max=${max_threads}, Min=${min_threads}, Avg=${avg_threads}"
 
+# Calculate FD statistics
+if [ ${#fd_values[@]} -gt 0 ]; then
+    # Calculate max
+    max_fd=${fd_values[0]}
+    for fd in "${fd_values[@]}"; do
+        if [ $fd -gt $max_fd ]; then
+            max_fd=$fd
+        fi
+    done
+    
+    # Calculate min
+    min_fd=${fd_values[0]}
+    for fd in "${fd_values[@]}"; do
+        if [ $fd -lt $min_fd ]; then
+            min_fd=$fd
+        fi
+    done
+    
+    # Calculate avg
+    sum_fd=0
+    for fd in "${fd_values[@]}"; do
+        sum_fd=$((sum_fd + fd))
+    done
+    avg_fd=$((sum_fd / ${#fd_values[@]}))
+else
+    max_fd="N/A"
+    min_fd="N/A"
+    avg_fd="N/A"
+fi
+
+log_with_timestamp "FD Statistics: Max=${max_fd}, Min=${min_fd}, Avg=${avg_fd}"
+
 # Extract data from corresponding framework's TPS file
 TPS_FILE="$(dirname "$OUTPUT_FILE")/output/$FRAMEWORK.$BENCHMARK_PID.tps"
 start_tps="N/A"
@@ -276,12 +332,13 @@ else
 fi
 
 # Append data to markdown table - using new statistics format
-echo "| $FRAMEWORK | $start_tps | $mid_tps | $end_tps | $max_cpu% | $min_cpu% | $avg_cpu% | ${max_mem}MB | ${min_mem}MB | ${avg_mem}MB | $max_threads | $min_threads | $avg_threads |" >> "$OUTPUT_FILE"
+echo "| $FRAMEWORK | $start_tps | $mid_tps | $end_tps | $max_cpu% | $min_cpu% | $avg_cpu% | ${max_mem}MB | ${min_mem}MB | ${avg_mem}MB | $max_threads | $min_threads | $avg_threads | $max_fd | $min_fd | $avg_fd |" >> "$OUTPUT_FILE"
 
-# Save CPU, memory, and thread count data to separate file (also use PID suffix)
+# Save CPU, memory, thread count and FD data to separate file (also use PID suffix)
 CPU_FILE="$(dirname "$OUTPUT_FILE")/output/$FRAMEWORK.$BENCHMARK_PID.cpu"
 MEM_FILE="$(dirname "$OUTPUT_FILE")/output/$FRAMEWORK.$BENCHMARK_PID.mem"
 THREAD_FILE="$(dirname "$OUTPUT_FILE")/output/$FRAMEWORK.$BENCHMARK_PID.threads"
+FD_FILE="$(dirname "$OUTPUT_FILE")/output/$FRAMEWORK.$BENCHMARK_PID.fd"
 
 echo "max $max_cpu" > "$CPU_FILE"
 echo "min $min_cpu" >> "$CPU_FILE"
@@ -294,5 +351,9 @@ echo "avg $avg_mem" >> "$MEM_FILE"
 echo "max $max_threads" > "$THREAD_FILE"
 echo "min $min_threads" >> "$THREAD_FILE"
 echo "avg $avg_threads" >> "$THREAD_FILE"
+
+echo "max $max_fd" > "$FD_FILE"
+echo "min $min_fd" >> "$FD_FILE"
+echo "avg $avg_fd" >> "$FD_FILE"
 
 log_with_timestamp "Metrics collection completed for $FRAMEWORK" 

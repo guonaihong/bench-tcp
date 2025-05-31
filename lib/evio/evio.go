@@ -48,7 +48,7 @@ func (s *Server) Start() error {
 
 	// Handle connection closed
 	events.Closed = func(c evio.Conn, err error) (action evio.Action) {
-		log.Printf("Closed: %s, err: %v", c.RemoteAddr().String(), err)
+		// log.Printf("Closed: %s, err: %v", c.RemoteAddr().String(), err)
 		return
 	}
 

@@ -23,7 +23,7 @@ func NewServer(addr []string) *Server {
 		MaxWriteBufferSize: 1024 * 1024 * 1024 * 1024,
 		ReadBufferSize:     8 * 1024,
 		NPoller:            runtime.NumCPU(),
-		EpollMod:           nbio.EPOLLET,
+		EpollMod:           nbio.EPOLLLT,
 	})
 
 	// handle new connection
