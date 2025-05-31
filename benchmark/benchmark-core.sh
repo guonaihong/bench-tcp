@@ -32,13 +32,26 @@ duration_to_seconds() {
 }
 
 # This is a core benchmark script that can be called with different parameters
-# Usage: benchmark-core.sh [concurrency] [duration] [extra_args]
-# Example: benchmark-core.sh 10000 100s
+# Usage: benchmark-core.sh [concurrency] [duration] [rebuild] [extra_args]
+# Example: benchmark-core.sh 10000 100s true
 
 # Default values
 CONCURRENCY=${1:-10000}  # Default to 10k connections if not specified
 DURATION=${2:-100s}      # Default to 100 seconds if not specified
-EXTRA_ARGS=${3:-""}      # Additional arguments to pass to bench-tcp
+REBUILD=${3:-false}      # Whether to rebuild the project
+EXTRA_ARGS=${4:-""}      # Additional arguments to pass to bench-tcp
+
+# Rebuild if requested
+if [ "$REBUILD" = "true" ]; then
+    log_with_timestamp "Rebuilding project..."
+    make clean
+    make
+    if [ $? -ne 0 ]; then
+        log_with_timestamp "Error: Build failed"
+        exit 1
+    fi
+    log_with_timestamp "Build completed successfully"
+fi
 
 # Stop any existing servers first
 log_with_timestamp "Stopping any existing servers..."
