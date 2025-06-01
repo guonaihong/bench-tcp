@@ -7,7 +7,7 @@ import (
 	"log/slog"
 	"sync"
 
-	_ "net/http/pprof"
+	// _ "net/http/pprof"
 
 	"github.com/antlabs/pulse"
 	"github.com/guonaihong/bench-tcp/pkg/port"

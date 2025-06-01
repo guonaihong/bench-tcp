@@ -2,6 +2,7 @@
 
 # Array of enabled servers (uncomment the ones you want to run)
 ENABLED_SERVERS=(
+"pulse"
  "net-tcp"
  "uio"
  "evio"
@@ -9,7 +10,6 @@ ENABLED_SERVERS=(
  "gnet"
  "gev"
  "nbio"
-  "pulse"
 )
 
 # Port ranges for different libraries

@@ -6,12 +6,12 @@ toolchain go1.24.1
 
 require (
 	github.com/Allenxuxu/gev v0.3.0
-	github.com/antlabs/pulse v0.0.0-20250531060745-e87f1969bec1
+	github.com/antlabs/pulse v0.0.0-20250601064916-ba20cde46164
 	github.com/cloudwego/netpoll v0.7.0
 	github.com/lesismal/nbio v1.6.5-0.20250518062148-fa57bdac8a64
 	github.com/panjf2000/gnet/v2 v2.3.3
 	github.com/tidwall/evio v1.0.8
-	github.com/urpc/uio v0.0.0-20250525045840-839746f008a0
+	github.com/urpc/uio v0.0.0-20250601071757-c46023baa26b
 )
 
 require (
