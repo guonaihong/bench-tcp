@@ -21,6 +21,7 @@ ENABLED_SERVERS=(
      "gev"
      "nbio"
      "pulse"
+     "pulse-et"
 )
 ```
 * 运行

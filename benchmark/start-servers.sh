@@ -42,8 +42,8 @@ start_server() {
     export "${lib_upper}_START_PORT"="$start_port"
     export "${lib_upper}_END_PORT"="$end_port"
     
-    # Determine binary path
-    local bin_path="$(dirname "$0")/../bin/${lib_name}.${BIN_EXT}"
+    # Determine binary path - use absolute path
+    local bin_path="$(cd "$(dirname "$0")/.." && pwd)/bin/${lib_name}.${BIN_EXT}"
     
     if [ ! -x "$bin_path" ]; then
         echo "Error: Binary not found or not executable: $bin_path"

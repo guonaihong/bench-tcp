@@ -15,14 +15,15 @@ type PortRange struct {
 
 // Default port ranges for different libraries
 var defaultPortRanges = map[string]PortRange{
-	"NET_TCP": {Start: 1000, End: 1000},
-	"UIO":     {Start: 1100, End: 1100},
-	"EVIO":    {Start: 1200, End: 1200},
-	"NETPOLL": {Start: 1300, End: 1300},
-	"GNET":    {Start: 1400, End: 1400},
-	"GEV":     {Start: 1500, End: 1500},
-	"NBIO":    {Start: 1600, End: 1600},
-	"PULSE":   {Start: 1700, End: 1700},
+	"NET_TCP":  {Start: 1000, End: 1000},
+	"UIO":      {Start: 1100, End: 1100},
+	"EVIO":     {Start: 1200, End: 1200},
+	"NETPOLL":  {Start: 1300, End: 1300},
+	"GNET":     {Start: 1400, End: 1400},
+	"GEV":      {Start: 1500, End: 1500},
+	"NBIO":     {Start: 1600, End: 1600},
+	"PULSE":    {Start: 1700, End: 1700},
+	"PULSE_ET": {Start: 1800, End: 1800},
 }
 
 // GetPortRange returns the port range for a given library name

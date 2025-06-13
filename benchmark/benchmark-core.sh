@@ -57,8 +57,7 @@ EXTRA_ARGS=${4:-""}      # Additional arguments to pass to bench-tcp
 # Rebuild if requested
 if [ "$REBUILD" = "true" ]; then
     log_with_timestamp "Rebuilding project..."
-    make clean
-    make
+    ./benchmark/build.sh clean build
     if [ $? -ne 0 ]; then
         log_with_timestamp "Error: Build failed"
         exit 1
@@ -96,9 +95,9 @@ sleep 2
 # Detect OS type to use correct binary
 OSTYPE=$(uname -s)
 if [[ "$OSTYPE" == "Linux" ]]; then
-    BENCH_BIN="bin/bench-tcp.linux"
+    BENCH_BIN="$(cd "$(dirname "$0")/.." && pwd)/bin/bench-tcp.linux"
 elif [[ "$OSTYPE" == "Darwin" ]]; then
-    BENCH_BIN="bin/bench-tcp.mac"
+    BENCH_BIN="$(cd "$(dirname "$0")/.." && pwd)/bin/bench-tcp.mac"
 else
     log_with_timestamp "Unsupported OS: $OSTYPE"
     exit 1
