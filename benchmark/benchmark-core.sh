@@ -72,6 +72,9 @@ log_with_timestamp "Stopping any existing servers..."
 # Source the config file to get ENABLED_SERVERS
 source "$(dirname "$0")/config.sh"
 
+# 对${ENABLED_SERVERS[@]} 进行随机洗牌, 防止第一个压测的框架在温度上占到便宜
+# 因为第一个框架机器在压测时温度比较低，可以tps可能会高些
+ENABLED_SERVERS=($(echo "${ENABLED_SERVERS[@]}" | tr ' ' '\n' | shuf | tr '\n' ' '))
 # Export port ranges as environment variables for lib servers
 for server in "${ENABLED_SERVERS[@]}"; do
     # Convert server name to uppercase and replace - with _
@@ -143,6 +146,7 @@ echo "|----------------|------------|-------------|----------|------------|-----
 
 # Run benchmarks for each enabled server
 log_with_timestamp "Running benchmarks..."
+
 for server in "${ENABLED_SERVERS[@]}"; do
     log_with_timestamp "Benchmarking $server..."
     

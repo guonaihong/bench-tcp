@@ -2,7 +2,7 @@
 
 # Array of enabled servers (uncomment the ones you want to run)
 ENABLED_SERVERS=(
-"pulse"
+ "pulse"
  "net-tcp"
  "uio"
  "evio"
@@ -10,6 +10,7 @@ ENABLED_SERVERS=(
  "gnet"
  "gev"
  "nbio"
+ "pulse-et"
 )
 
 # Port ranges for different libraries
@@ -46,3 +47,7 @@ NBIO_END_PORT=1600
 # Eighth port range (1700-1730)
 PULSE_START_PORT=1700
 PULSE_END_PORT=1700
+
+# Ninth port range (1800-1830)
+PULSE_ET_START_PORT=1800
+PULSE_ET_END_PORT=1800
