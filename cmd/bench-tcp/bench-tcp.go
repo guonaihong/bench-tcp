@@ -24,6 +24,20 @@ import (
 	"github.com/guonaihong/clop"
 )
 
+// formatBytes formats byte count as KB, MB, GB etc.
+func formatBytes(bytes int64) string {
+	const unit = 1024
+	if bytes < unit {
+		return fmt.Sprintf("%dB", bytes)
+	}
+	div, exp := int64(unit), 0
+	for n := bytes / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f%cB", float64(bytes)/float64(div), "KMGTPE"[exp])
+}
+
 // https://github.com/snapview/tokio-tungstenite/blob/master/examples/autobahn-client.rs
 
 // --verify-file 用于检查向服务端发送一个大文件，服务端echo返回的数据是否一致，用于检查服务端是否有丢包
@@ -45,6 +59,7 @@ type Client struct {
 	LimitPortRange int           `clop:"short;long" usage:"Limit port range (1 for limited, -1 for unlimited)" default:"1"`
 	VerifyFile     string        `clop:"long" usage:"File path to verify echo content"`
 	Debug          bool          `clop:"long" usage:"Debug mode"`
+	Flow           bool          `clop:"long" usage:"Enable flow testing mode" default:"false"`
 	mu             sync.Mutex
 
 	result []int
@@ -61,8 +76,12 @@ func (c *Client) getAddrs() string {
 	return c.addrs[curIndex%len(c.addrs)]
 }
 
-var recvCount int64
-var sendCount int64
+var (
+	recvCount int64 // 接收次数
+	sendCount int64 // 发送次数
+	recvBytes int64 // 接收字节数
+	sendBytes int64 // 发送字节数
+)
 
 var payload []byte
 
@@ -197,10 +216,65 @@ func (client *Client) runTest(currTotal int, data chan struct{}) {
 		return
 	}
 
+	if client.Flow {
+		client.flowTest(c)
+		return
+	}
 	if client.VerifyFile == "" {
 		c.Write(payload)
 	}
 	(&echoHandler{Client: client, curr: currTotal, total: currTotal, data: data}).readLoop(c)
+}
+
+func (c *Client) readLoopFlow(conn net.Conn) {
+	buf := make([]byte, 1024)
+	for {
+		select {
+		case <-c.ctx.Done():
+			return
+		default:
+		}
+		n, err := conn.Read(buf)
+		if err != nil {
+			fmt.Printf("read socket error: %v\n", err)
+			return
+		}
+		atomic.AddInt64(&recvCount, 1)
+		atomic.AddInt64(&recvBytes, int64(n))
+	}
+}
+
+func (c *Client) writeLoopFlow(conn net.Conn) {
+	buf := make([]byte, 1024)
+	for {
+		select {
+		case <-c.ctx.Done():
+			return
+		default:
+		}
+		n, err := conn.Write(buf)
+		if err != nil {
+			fmt.Printf("write socket error: %v\n", err)
+			return
+		}
+		atomic.AddInt64(&sendCount, 1)
+		atomic.AddInt64(&sendBytes, int64(n))
+	}
+}
+
+func (c *Client) flowTest(conn net.Conn) {
+	var wg sync.WaitGroup
+	wg.Add(2)
+	defer wg.Wait()
+
+	go func() {
+		defer wg.Done()
+		c.readLoopFlow(conn)
+	}()
+	go func() {
+		defer wg.Done()
+		c.writeLoopFlow(conn)
+	}()
 }
 
 // 生产者
@@ -271,13 +345,16 @@ func (c *Client) consumer(data chan struct{}) {
 func (c *Client) printTps(now time.Time, sec *int) {
 	recvCount := atomic.LoadInt64(&recvCount)
 	sendCount := atomic.LoadInt64(&sendCount)
+	recvBytesVal := atomic.LoadInt64(&recvBytes)
+	sendBytesVal := atomic.LoadInt64(&sendBytes)
 	n := int64(time.Since(now).Seconds())
 	if n == 0 {
 		n = 1
 	}
 
 	if c.OpenTmpResult {
-		fmt.Printf("sec: %d, recv-count: %d, send-count:%d recv-tps: %d, send-tps: %d\n", *sec, recvCount, sendCount, recvCount/n, sendCount/n)
+		fmt.Printf("sec: %d, recv-count: %d, send-count:%d recv-tps: %d, send-tps: %d, recv-bytes: %s/s, send-bytes: %s/s\n",
+			*sec, recvCount, sendCount, recvCount/n, sendCount/n, formatBytes(recvBytesVal/n), formatBytes(sendBytesVal/n))
 	}
 
 	c.mu.Lock()
