@@ -45,10 +45,10 @@ func startServer(port int, wg *sync.WaitGroup) {
 	el, err := pulse.NewMultiEventLoop(
 		context.Background(),
 		pulse.WithCallback(&handler{}),
-		pulse.WithLogLevel[[]byte](slog.LevelError),
-		pulse.WithTaskType[[]byte](pulse.TaskTypeInEventLoop),
-		pulse.WithTriggerType[[]byte](pulse.TriggerTypeEdge),
-		pulse.WithEventLoopReadBufferSize[[]byte](8*1024),
+		pulse.WithLogLevel(slog.LevelError),
+		pulse.WithTaskType(pulse.TaskTypeInEventLoop),
+		pulse.WithTriggerType(pulse.TriggerTypeEdge),
+		pulse.WithEventLoopReadBufferSize(8*1024),
 	)
 	if err != nil {
 		panic(err.Error())

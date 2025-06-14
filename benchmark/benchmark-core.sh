@@ -73,7 +73,7 @@ log_with_timestamp "Stopping any existing servers..."
 source "$(dirname "$0")/config.sh"
 
 # 对${ENABLED_SERVERS[@]} 进行随机洗牌, 防止第一个压测的框架在温度上占到便宜
-# 因为第一个框架机器在压测时温度比较低，可以tps可能会高些
+# 因为第一个框架在压测时机器温度比较低，tps可能会高些，所以需要随机洗牌
 ENABLED_SERVERS=($(echo "${ENABLED_SERVERS[@]}" | tr ' ' '\n' | shuf | tr '\n' ' '))
 # Export port ranges as environment variables for lib servers
 for server in "${ENABLED_SERVERS[@]}"; do
